@@ -1,16 +1,18 @@
 use axum::Json;
+use personagens::{lista_personagens, Personagem};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 pub mod personagens;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive( Serialize, Deserialize)]
 pub struct Jogador{
     pub nome: String,
     pub funcao: Funcao,
+    pub personagem: Personagem
 }
 
-#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq,  Serialize, Deserialize)]
 pub enum TipoFuncao{
     Xerife,
     ForaDaLei,
@@ -19,14 +21,14 @@ pub enum TipoFuncao{
     Indefinido
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone,  Serialize, Deserialize)]
 pub struct Funcao{
     pub nome: String,
     pub descricao: String,
     pub tipofuncao: TipoFuncao,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive( Serialize, Deserialize)]
 pub struct Jogo{
     pub jogadores: Vec<Jogador>
 }
@@ -99,6 +101,18 @@ pub async fn iniciar_jogo(input: Json<NomesJogadores>) -> Json<Jogo>{
                 nome: "Indefinido".to_string(),
                 descricao: "Indefinido".to_string(),
                 tipofuncao: TipoFuncao::Indefinido
+            },
+            personagem: Personagem{
+                nome: "Indefinido".to_string(),
+                descricao: "Indefinido".to_string(),
+                atributos: personagens::Atributos{
+                    vida_atual: 0,
+                    vida_maxima: 0,
+                    efeitos: Vec::new(),
+                    distancia: 0,
+                    visao: 0,
+                    limitecompra: 0
+                }
             }
         };
 
@@ -147,6 +161,25 @@ pub async fn iniciar_jogo(input: Json<NomesJogadores>) -> Json<Jogo>{
                 tipofuncao: TipoFuncao::Vice
             };
             break;
+        }
+    }
+
+    let personagens = lista_personagens();
+
+    let mut repetido = false;
+    while players.iter().any(|p| p.personagem.nome == "Indefinido")
+    || repetido{
+        let mut rng = rand::rng();
+        let personagem_index = rng.random_range(0..personagens.len());
+        let personagem = personagens[personagem_index].clone();
+        let mut rng = rand::rng();
+        let index = rng.random_range(0..players.len());
+        if players.iter().any(|p| p.personagem.nome == personagem.nome){
+            repetido = true;
+        }
+        if !(players.iter().any(|p| p.personagem.nome == personagem.nome)){
+            players[index].personagem = personagem;
+            repetido = false;
         }
     }
 

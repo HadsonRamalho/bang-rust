@@ -1,17 +1,23 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Personagem{
     pub nome: String,
     pub descricao: String,
     pub atributos: Atributos
 }
 
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Atributos{
     pub vida_atual: i32,
     pub vida_maxima: i32,
     pub efeitos: Vec<Efeito>,
     pub distancia: i32,
-    pub visao: i32
+    pub visao: i32,
+    pub limitecompra: i32,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
 pub enum Efeito{
     MaxBangs(i32),
     MaxCartas(i32),
@@ -32,7 +38,8 @@ pub enum Efeito{
     VultureSamRoubo
 }
 
-pub async fn lista_personagens(){
+pub fn lista_personagens()
+    -> Vec<Personagem>{
     let personagens =
     vec![
         Personagem{
@@ -43,7 +50,8 @@ pub async fn lista_personagens(){
                 vida_maxima: 4,
                 efeitos: vec![Efeito::MaxBangs(120)],
                 distancia: 1,
-                visao: 1
+                visao: 1,
+                limitecompra: 2
             }
         },
         Personagem{
@@ -51,11 +59,12 @@ pub async fn lista_personagens(){
             descricao: "Pode comprar a sua primeira carta
              (das duas que são compradas no início de cada rodada) da mão de um jogador.".to_string(),
             atributos: Atributos{
-                vida_atual: 4,
-                vida_maxima: 4,
+                vida_atual: 3,
+                vida_maxima: 3,
                 efeitos: vec![Efeito::KitCarlsonCartas],
                 distancia: 1,
-                visao: 1
+                visao: 1,
+                limitecompra: 2
             }
         },
         Personagem{
@@ -68,8 +77,25 @@ pub async fn lista_personagens(){
                 vida_maxima: 4,
                 efeitos: vec![Efeito::JoudonnaisBarril],
                 distancia: 1,
-                visao: 1
-            }            
+                visao: 1,
+                limitecompra: 2
+            }
+        },
+        Personagem{
+            nome: "Kit Carlson".to_string(),
+            descricao: "Olha as 3 primeiras cartas do topo do baralho de compras, 
+            escolhe duas que ficam com ele, devolve a última pro topo, e isso representa a sua 
+            fase de compras.".to_string(),
+            atributos: Atributos{
+                vida_atual: 4,
+                vida_maxima: 4,
+                efeitos: vec![Efeito::KitCarlsonCartas],
+                distancia: 1,
+                visao: 1,
+                limitecompra: 3
+            }
         }
     ];
+
+    personagens
 }

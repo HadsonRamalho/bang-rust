@@ -12,7 +12,7 @@ export async function startGame(nomes: string[]): Promise<Jogo> {
     } catch (error: any) {
       console.error(error.response?.status, error.message);
       throw new Error(
-        `Falha ao listar as máquinas: Código [${error.response?.status}]`
+        `Falha ao carregar o jogo: Código [${error.response?.status}]`
       );
     }
   }
