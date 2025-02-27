@@ -1,0 +1,23 @@
+{
+    "short_name": "Bang! Rust!",
+    "name": "Bang! Rust!",
+    "icons": [
+      {
+        "src": "./bullet192.png",
+        "type": "image/png",
+        "sizes": "192x192"
+      },
+      {
+        "src": "./bullet.png",
+        "type": "image/png",
+        "sizes": "512x512"
+      }
+    ],
+    "categories": ["bang!", "rust", "rustlang", "cardgame"],
+    "start_url": "/",
+    "background_color": "#fff",
+    "display_override": ["standalone", "window-control-overlay", "minimal-ui", "browser"],
+    "display": "standalone",
+    "theme_color": "#e2ae36"
+  }
+  

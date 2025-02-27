@@ -1,3 +1,4 @@
+use axum::Json;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -38,8 +39,8 @@ pub enum Efeito{
     VultureSamRoubo
 }
 
-pub fn lista_personagens()
-    -> Vec<Personagem>{
+pub async fn lista_personagens()
+    -> Json<Vec<Personagem>>{
     let personagens =
     vec![
         Personagem{
@@ -97,5 +98,5 @@ pub fn lista_personagens()
         }
     ];
 
-    personagens
+    Json(personagens)
 }

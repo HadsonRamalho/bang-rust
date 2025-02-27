@@ -1,6 +1,7 @@
 use axum::Json;
 use personagens::{lista_personagens, Personagem};
-use rand::Rng;
+use rand::{Rng, SeedableRng};
+use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 
 pub mod personagens;
@@ -38,7 +39,7 @@ pub struct NomesJogadores{
     nomes: Vec<String>
 }
 
-pub fn choose_role(role_index: usize, has_xeriff: bool, has_vice: bool)
+pub fn escolher_cargo(role_index: usize, has_xeriff: bool, has_vice: bool)
     -> Funcao{
     let roles = vec![
         Funcao{
@@ -62,23 +63,23 @@ pub fn choose_role(role_index: usize, has_xeriff: bool, has_vice: bool)
             tipofuncao: TipoFuncao::Renegado
         }
     ];
-
-    let mut rng = rand::rng();
+    let mut rng = StdRng::from_os_rng();
 
     if has_xeriff && role_index == 0{
         let index = rng.random_range(0..4);
-        return choose_role(index, has_xeriff, has_vice);
+        return escolher_cargo(index, has_xeriff, has_vice);
     }
 
     if has_vice && role_index == 2{
         let index = rng.random_range(0..4);
-        return choose_role(index, has_xeriff, has_vice);
+        return escolher_cargo(index, has_xeriff, has_vice);
     }
 
     return roles[role_index].clone()
 
 }
 
+#[axum::debug_handler]
 pub async fn iniciar_jogo(input: Json<NomesJogadores>) -> Json<Jogo>{
     let nomes = input.nomes.clone();
     let num_players = nomes.len();
@@ -122,12 +123,12 @@ pub async fn iniciar_jogo(input: Json<NomesJogadores>) -> Json<Jogo>{
     let mut xerife_criado = false;
     let mut vice_criado = false;
 
-    let mut rng = rand::rng();
+    let mut rng = StdRng::from_os_rng();
     for player in players.iter_mut() {
         let mut has_role = false;
         while !has_role{
             let role_index = rng.random_range(0..4);
-            let role = choose_role(role_index, xerife_criado, vice_criado);
+            let role = escolher_cargo(role_index, xerife_criado, vice_criado);
             if role.tipofuncao == TipoFuncao::Xerife{
                 xerife_criado = true;
             }
@@ -142,7 +143,7 @@ pub async fn iniciar_jogo(input: Json<NomesJogadores>) -> Json<Jogo>{
     }
 
     if !players.iter().any(|player| player.funcao.tipofuncao == TipoFuncao::Xerife){
-        let mut rng = rand::rng();
+        let mut rng = StdRng::from_os_rng();
         let index = rng.random_range(0..players.len());
         players[index].funcao = Funcao{
             nome: "Xerife".to_string(),
@@ -152,7 +153,7 @@ pub async fn iniciar_jogo(input: Json<NomesJogadores>) -> Json<Jogo>{
     }
 
     while !players.iter().any(|player| player.funcao.tipofuncao == TipoFuncao::Vice){
-        let mut rng = rand::rng();
+        let mut rng = StdRng::from_os_rng();
         let index = rng.random_range(0..players.len());
         if players[index].funcao.tipofuncao != TipoFuncao::Xerife{
             players[index].funcao = Funcao{
@@ -164,15 +165,15 @@ pub async fn iniciar_jogo(input: Json<NomesJogadores>) -> Json<Jogo>{
         }
     }
 
-    let personagens = lista_personagens();
+    let personagens = lista_personagens().await.0;
 
     let mut repetido = false;
     while players.iter().any(|p| p.personagem.nome == "Indefinido")
     || repetido{
-        let mut rng = rand::rng();
+        let mut rng = StdRng::from_os_rng();
         let personagem_index = rng.random_range(0..personagens.len());
         let personagem = personagens[personagem_index].clone();
-        let mut rng = rand::rng();
+        let mut rng = StdRng::from_os_rng();
         let index = rng.random_range(0..players.len());
         if players.iter().any(|p| p.personagem.nome == personagem.nome){
             repetido = true;
