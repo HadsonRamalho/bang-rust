@@ -17,6 +17,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { iniciaJogo, listaPersonagens } from "./services/game/game";
 import { Personagem } from "./interfaces/character/character";
+import { Avatar } from "./components/ui/avatar";
+import { CardSvgIcon } from "./components/card-svg-icon";
 
 function App() {
   const [players, setPlayers] = useState<Jogador[]>([]);
@@ -131,6 +133,13 @@ function App() {
                           <p>
                             <strong>Nome:</strong> {player.nome}
                           </p>
+
+                          <CardHeader className="flex items-center space-x-4">
+                            <Avatar className="w-20 h-20">
+                              <img src={`${player.funcao.nome}.png`} alt="" />
+                            </Avatar>
+                          </CardHeader>
+
                           <p>
                             <strong>Função: </strong> {player.funcao.nome}
                           </p>
@@ -149,7 +158,7 @@ function App() {
                               <strong>
                                 <p>Vida:</p>
                               </strong>
-                              <div className="flex space-x-1">
+                              <div className="flex space-x-1 mb-4">
                                 {Array.from({
                                   length:
                                     player.personagem.atributos.vida_maxima,
@@ -162,6 +171,21 @@ function App() {
                                   </span>
                                 ))}
                               </div>
+                              {player.cartas.map((carta, index) => {
+                                const [tipo, info] = Object.entries(carta)[0]; // Pega a chave e o valor
+
+                                return (
+                                  <Card className="mb-2 border-[hsl(var(--primary))]" key={index}>
+                                    <CardHeader className="flex items-center space-x-0">
+                                      <CardSvgIcon tipo={tipo} size={45} />
+                                      <p><strong>{tipo}</strong></p>
+                                    </CardHeader>
+                                    <CardContent>
+                                      {info.descricao}
+                                    </CardContent>
+                                  </Card>
+                                );
+                              })}
                             </div>
                           </div>
                         </CardContent>
@@ -183,57 +207,38 @@ function App() {
                       className="border-[hsl(var(--primary))] space-y-2 mb-2"
                       key={index}
                     >
-                      <CardHeader>
+                      <CardHeader className="flex items-center space-x-4">
+                        <Avatar className="w-20 h-20">
+                          <img src={`${personagem.nome}.png`} alt="" />
+                        </Avatar>
                         <p>
                           <strong>Nome: </strong>
                           {personagem.nome}
                         </p>
+                        <p>
+                          <strong>Descrição:</strong>
+                          {personagem.descricao}
+                        </p>
+                        <Card className="border-[hsl(var(--primary))]">
+                          <CardHeader>
+                            <strong>Atributos</strong>
+                          </CardHeader>
+                          <CardContent>
+                            <p>
+                              <strong>Vida Máxima: </strong>
+                              {personagem.atributos.vida_maxima}
+                            </p>
+                            <p>
+                              <strong>Alcance da Visão: </strong>
+                              {personagem.atributos.visao}
+                            </p>
+                            <p>
+                              <strong>Distância: </strong>
+                              {personagem.atributos.distancia}
+                            </p>
+                          </CardContent>
+                        </Card>
                       </CardHeader>
-                      <CardContent>
-                        <div>
-                          <p>
-                            <strong>Descrição: </strong>
-                            {personagem.descricao}
-                          </p>
-                          <div>
-                            <Card className="border-[hsl(var(--primary))] m-2">
-                              <CardHeader>
-                                <strong>Atributos</strong>
-                              </CardHeader>
-                              <CardContent>
-                                <p>
-                                  <strong>Vida Máxima: </strong>{" "}
-                                  {personagem.atributos.vida_maxima}{" "}
-                                </p>
-                                <p>
-                                  <strong>Alcance Base: </strong>{" "}
-                                  {personagem.atributos.visao}{" "}
-                                </p>
-                                <p>
-                                  <strong>Distância Base: </strong>{" "}
-                                  {personagem.atributos.distancia}{" "}
-                                </p>
-                                <p>
-                                  <strong>Compra de Cartas: </strong>{" "}
-                                  {personagem.atributos.limitecompra}{" "}
-                                </p>
-                              </CardContent>
-                            </Card>
-                          </div>
-                          <div className="flex space-x-1">
-                            {Array.from({
-                              length: personagem.atributos.vida_maxima,
-                            }).map((_, index) => (
-                              <span key={index}>
-                                <Bullet
-                                  color="hsl(var(--primary))"
-                                  size={35}
-                                ></Bullet>
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </CardContent>
                     </Card>
                   ))}
                 </CardContent>

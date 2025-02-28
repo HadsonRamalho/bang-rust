@@ -1,16 +1,19 @@
 use axum::Json;
+use cartas::{lista_cartas, Carta};
 use personagens::{lista_personagens, Personagem};
 use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 
 pub mod personagens;
+pub mod cartas;
 
 #[derive( Serialize, Deserialize)]
 pub struct Jogador{
     pub nome: String,
     pub funcao: Funcao,
-    pub personagem: Personagem
+    pub personagem: Personagem,
+    pub cartas: Vec<Carta>
 }
 
 #[derive(Clone, Copy, PartialEq,  Serialize, Deserialize)]
@@ -79,6 +82,26 @@ pub fn escolher_cargo(role_index: usize, has_xeriff: bool, has_vice: bool)
 
 }
 
+pub async fn criar_baralho(limite_cartas: usize)
+    -> Vec<Carta>{
+    let cartas = lista_cartas().await.0;
+    let cartas2 = lista_cartas().await.0;
+    let cartas3 = lista_cartas().await.0;
+    let mut cartasfinal = cartas.clone();
+    cartasfinal.extend(cartas2);
+    cartasfinal.extend(cartas3);
+
+    let mut baralho = vec![];
+    let mut rng = StdRng::from_os_rng();
+    for i in 0..limite_cartas.min(cartasfinal.len()) {
+        let index = rng.random_range(0..limite_cartas);
+        baralho.push(cartasfinal[index].clone());
+    }
+
+    baralho    
+
+}
+
 #[axum::debug_handler]
 pub async fn iniciar_jogo(input: Json<NomesJogadores>) -> Json<Jogo>{
     let nomes = input.nomes.clone();
@@ -114,7 +137,8 @@ pub async fn iniciar_jogo(input: Json<NomesJogadores>) -> Json<Jogo>{
                     visao: 0,
                     limitecompra: 0
                 }
-            }
+            },
+            cartas: vec![]
         };
 
         players.push(player);
@@ -182,6 +206,10 @@ pub async fn iniciar_jogo(input: Json<NomesJogadores>) -> Json<Jogo>{
             players[index].personagem = personagem;
             repetido = false;
         }
+    }
+
+    for player in players.iter_mut(){
+        player.cartas = criar_baralho(player.personagem.atributos.vida_maxima as usize).await;
     }
 
     let game = Jogo{
