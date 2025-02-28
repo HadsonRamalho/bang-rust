@@ -15,12 +15,13 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { iniciaJogo, listaPersonagens } from "./services/game/game";
+import { iniciaJogo, listaPersonagens, usaCarta } from "./services/game/game";
 import { Personagem } from "./interfaces/character/character";
 import { Avatar } from "./components/ui/avatar";
 import { CardSvgIcon } from "./components/card-svg-icon";
 import { useMask } from '@react-input/mask';
 import { toast } from "sonner"
+import { Carta } from "./interfaces/cards/cards";
 function App() {
   const [players, setPlayers] = useState<Jogador[]>([]);
   const [personagens, setPersonagens] = useState<Personagem[]>([]);
@@ -28,6 +29,7 @@ function App() {
   const [turno, setTurno] = useState(players.find(player => player.funcao.nome === "Xerife")?.nome); // Example using some condition
 
   const [qtdPlayers, setQtdPlayers] = useState(0);
+  const [jogo, setJogo] = useState<Jogo>();
 
   const [playerNames, setPlayerNames] = useState<string[]>(
     Array(qtdPlayers).fill("")
@@ -40,6 +42,8 @@ function App() {
     setTurno(turnoAtual);
     toast(`${turnoAtual} é o Xerife!`);
     setPlayers(res.jogadores);
+    console.log("idjogo: ", res.id);
+    setJogo(res);
   };
 
   const loadCharacters = async () => {
@@ -51,6 +55,11 @@ function App() {
   useEffect(() => {
     loadCharacters();
   }, []);
+
+  const usarCarta = async (carta: Carta, jogador: Jogador, jogo: Jogo) =>{
+    console.log(carta);
+    await usaCarta(carta, jogador, jogo);
+  }
 
   const inputRef = useMask({
     mask: "_",
@@ -203,7 +212,13 @@ function App() {
                                     <CardFooter>
                                       {(turno === player.nome && tipo !== "Esquiva") && 
                                       (
-                                        <Button className="bg-[hsl(var(--primary))]">Usar carta</Button>
+                                        <Button  onClick={
+                                          async () => {
+                                            if(jogo){
+                                              await usarCarta(carta, player, jogo);
+                                            }
+                                          }
+                                        } className="bg-[hsl(var(--primary))]">Usar carta</Button>
                                       )}
                                     </CardFooter>
                                   </Card>

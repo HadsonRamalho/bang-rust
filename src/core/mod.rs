@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod personagens;
 pub mod cartas;
+pub mod jogos;
 
 #[derive( Serialize, Deserialize)]
 pub struct Jogador{
@@ -34,7 +35,8 @@ pub struct Funcao{
 
 #[derive( Serialize, Deserialize)]
 pub struct Jogo{
-    pub jogadores: Vec<Jogador>
+    pub jogadores: Vec<Jogador>,
+    pub id: u32
 }
 
 #[derive(Serialize, Deserialize)]
@@ -110,7 +112,8 @@ pub async fn iniciar_jogo(input: Json<NomesJogadores>) -> Json<Jogo>{
     if num_players < 4 || num_players > 8{
         println!("Número de jogadores inválido. O jogo deve ter entre 4 e 8 jogadores.");
         return Json(Jogo{
-            jogadores: Vec::new()
+            jogadores: Vec::new(),
+            id: 0 as u32
         });
     }
 
@@ -212,8 +215,12 @@ pub async fn iniciar_jogo(input: Json<NomesJogadores>) -> Json<Jogo>{
         player.cartas = criar_baralho(player.personagem.atributos.vida_maxima as usize).await;
     }
 
+    let mut rng = StdRng::from_os_rng();
+    let id: u32 = rng.random_range(1111..9999);
+
     let game = Jogo{
-        jogadores: players
+        jogadores: players,
+        id
     };
 
     Json(game)
