@@ -19,6 +19,7 @@ import { iniciaJogo, listaPersonagens } from "./services/game/game";
 import { Personagem } from "./interfaces/character/character";
 import { Avatar } from "./components/ui/avatar";
 import { CardSvgIcon } from "./components/card-svg-icon";
+import { useMask } from '@react-input/mask';
 
 function App() {
   const [players, setPlayers] = useState<Jogador[]>([]);
@@ -45,6 +46,11 @@ function App() {
   useEffect(() => {
     loadCharacters();
   }, []);
+
+  const inputRef = useMask({
+    mask: "_",
+    replacement: { _: /\d/ },
+  });
 
   return (
     <>
@@ -81,7 +87,14 @@ function App() {
                       className="focus:ring-[hsl(var(--primary))] border-[hsl(var(--primary))]"
                       max={7}
                       min={4}
-                      onChange={(e) => setQtdPlayers(parseInt(e.target.value))}
+                      ref={inputRef}
+                      onBlur={(e) => {
+                        if (parseInt(e.target.value) > 3 && parseInt(e.target.value) < 8){
+                          setQtdPlayers(parseInt(e.target.value))
+                          return;
+                        }
+                        alert("A quantidade de players é inválida.");
+                      }}
                     />
                   </div>
 
