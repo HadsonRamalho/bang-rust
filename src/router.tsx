@@ -1,10 +1,9 @@
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
-import { BrowserRouter, Route, Routes } from "react-router";
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { BrowserRouter, Routes, Route } from "react-router";
+import App from "./App";
 import { Toaster } from "sonner";
+
 const root = document.getElementById("root");
 
 if (root){
@@ -17,4 +16,3 @@ if (root){
         </BrowserRouter>
       );
 }
-

@@ -20,10 +20,12 @@ import { Personagem } from "./interfaces/character/character";
 import { Avatar } from "./components/ui/avatar";
 import { CardSvgIcon } from "./components/card-svg-icon";
 import { useMask } from '@react-input/mask';
-
+import { toast } from "sonner"
 function App() {
   const [players, setPlayers] = useState<Jogador[]>([]);
   const [personagens, setPersonagens] = useState<Personagem[]>([]);
+
+  const [turno, setTurno] = useState(players.find(player => player.funcao.nome === "Xerife")?.nome); // Example using some condition
 
   const [qtdPlayers, setQtdPlayers] = useState(0);
 
@@ -34,6 +36,9 @@ function App() {
   const loadGame = async () => {
     const res: Jogo = await iniciaJogo(playerNames);
     console.log(res);
+    const turnoAtual = res.jogadores.find(player => player.funcao.nome === "Xerife")?.nome;
+    setTurno(turnoAtual);
+    toast(`${turnoAtual} é o Xerife!`);
     setPlayers(res.jogadores);
   };
 
@@ -93,7 +98,7 @@ function App() {
                           setQtdPlayers(parseInt(e.target.value))
                           return;
                         }
-                        alert("A quantidade de players é inválida.");
+                        alert("A quantidade de jogadores é inválida.");
                       }}
                     />
                   </div>
@@ -139,8 +144,8 @@ function App() {
                     )}
                     {players.map((player, index) => (
                       <Card
-                        className="border-[hsl(var(--primary))] space-y-2 mb-2"
-                        key={index}
+                      className={`${turno === player.nome ? 'border-[hsl(var(--primary))] border-[4px] space-y-2 mb-2' : 'border-[hsl(var(--primary))] space-y-1 mb-1'}`}
+                      key={index}
                       >
                         <CardHeader>
                           <p>
@@ -186,7 +191,6 @@ function App() {
                               </div>
                               {player.cartas.map((carta, index) => {
                                 const [tipo, info] = Object.entries(carta)[0]; // Pega a chave e o valor
-
                                 return (
                                   <Card className="mb-2 border-[hsl(var(--primary))]" key={index}>
                                     <CardHeader className="flex items-center space-x-0">
@@ -196,6 +200,12 @@ function App() {
                                     <CardContent>
                                       {info.descricao}
                                     </CardContent>
+                                    <CardFooter>
+                                      {(turno === player.nome && tipo !== "Esquiva") && 
+                                      (
+                                        <Button className="bg-[hsl(var(--primary))]">Usar carta</Button>
+                                      )}
+                                    </CardFooter>
                                   </Card>
                                 );
                               })}
@@ -204,7 +214,7 @@ function App() {
                         </CardContent>
                       </Card>
                     ))}
-                  </div>
+                  </div>                  
                 </CardContent>
               </Card>
             </TabsContent>
