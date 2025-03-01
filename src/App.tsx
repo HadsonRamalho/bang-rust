@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { carregaJogo, compraCartas, iniciaJogo, listaPersonagens, usaCarta } from "./services/game/game";
+import { carregaJogo, compraCartas, entraJogo, iniciaJogo, listaPersonagens, usaCarta } from "./services/game/game";
 import type { Personagem } from "./interfaces/character/character";
 import { Avatar } from "./components/ui/avatar";
 import { CardSvgIcon } from "./components/card-svg-icon";
@@ -61,7 +61,7 @@ function App() {
   );
 
   const loadGame = async () => {
-	setLogs([]);
+    setLogs([]);
     const res: Jogo = await iniciaJogo(playerNames);
     if (res.id === 0) {
       return;
@@ -90,7 +90,7 @@ function App() {
     setPlayers(res.jogadores);
     console.log("idjogo: ", res.id);
     setJogo(res);
-    const ws = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/listar_handler');
+    const ws = new WebSocket('wss://kc9d45zp-3069.brs.devtunnels.ms/listar_handler');
 
     ws.onopen = () => {
       console.log('Conectado ao WebSocket de Listagem do LoadGame');
@@ -100,6 +100,7 @@ function App() {
     ws.onmessage = (event) => {
       const newMessage = event.data;
       setIdsJogos(newMessage);
+      console.log("mensagem: ", newMessage);
     };
 
     ws.onerror = (error) => {
@@ -131,17 +132,17 @@ function App() {
     const res = await usaCarta(carta, jogador, jogo);
     if (res.jogador.nome) {
       const [tipo, descricao] = Object.entries(res.carta)[0];
-	  if (tipo === "Saloon") {
-		  players.map((player) => {
-			if (player.personagem.atributos.vida_atual < player.personagem.atributos.vida_maxima) {
-			  const novaVida = Math.min(player.personagem.atributos.vida_atual + 1, player.personagem.atributos.vida_maxima);
-			  player.personagem.atributos.vida_atual = novaVida;
-			  console.log(`${player.nome} foi curado pelo Saloon de ${jogador.nome}`);
-			}
-		  })
-		;
-	  }
-	  const log: LogsCartas = {
+      if (tipo === "Saloon") {
+        players.map((player) => {
+          if (player.personagem.atributos.vida_atual < player.personagem.atributos.vida_maxima) {
+            const novaVida = Math.min(player.personagem.atributos.vida_atual + 1, player.personagem.atributos.vida_maxima);
+            player.personagem.atributos.vida_atual = novaVida;
+            console.log(`${player.nome} foi curado pelo Saloon de ${jogador.nome}`);
+          }
+        })
+          ;
+      }
+      const log: LogsCartas = {
         nomeCarta: descricao.nome,
         nomeJogador: jogador.nome,
         descricao: descricao.descricao,
@@ -156,27 +157,27 @@ function App() {
   };
 
   const comprarCartas = async (jogador: Jogador) => {
-	console.log("jogador: ", jogador);
-	if ( jogador.personagem.atributos.vida_atual < jogador.personagem.atributos.limitecompra){
-		const cartas = await compraCartas(jogador.personagem.atributos.vida_atual);
-		console.log("Cartas compradas: ", cartas);
-		return cartas;
-	}
-	const cartas = await compraCartas(jogador.personagem.atributos.limitecompra);
-	console.log("Cartas compradas: ", cartas);
-	return cartas
+    console.log("jogador: ", jogador);
+    if (jogador.personagem.atributos.vida_atual < jogador.personagem.atributos.limitecompra) {
+      const cartas = await compraCartas(jogador.personagem.atributos.vida_atual);
+      console.log("Cartas compradas: ", cartas);
+      return cartas;
+    }
+    const cartas = await compraCartas(jogador.personagem.atributos.limitecompra);
+    console.log("Cartas compradas: ", cartas);
+    return cartas
   }
 
   const descartarCarta = (carta: Carta, index: number, nomePlayer: string, nomeCarta: string) => {
-	toast(`${nomePlayer} descartou ${nomeCarta}`);
-	setPlayers(prevPlayers => {
-	  const updatedPlayers = [...prevPlayers];
-	  updatedPlayers[index] = {
-		...updatedPlayers[index],
-		cartas: updatedPlayers[index].cartas.filter(c => c !== carta)
-	  };
-	  return updatedPlayers;
-	});
+    toast(`${nomePlayer} descartou ${nomeCarta}`);
+    setPlayers(prevPlayers => {
+      const updatedPlayers = [...prevPlayers];
+      updatedPlayers[index] = {
+        ...updatedPlayers[index],
+        cartas: updatedPlayers[index].cartas.filter(c => c !== carta)
+      };
+      return updatedPlayers;
+    });
   };
 
   const inputRef = useMask({
@@ -195,7 +196,7 @@ function App() {
 
 
   const conectarJogo = () => {
-    const ws = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/ws');
+    const ws = new WebSocket('wss://kc9d45zp-3069.brs.devtunnels.ms/ws');
 
     ws.onopen = () => {
       console.log('Conectado ao WebSocket');
@@ -222,12 +223,12 @@ function App() {
 
   useEffect(() => {
     const connect = () => {
-      myws.current = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/listar_handler');
+      myws.current = new WebSocket('wss://kc9d45zp-3069.brs.devtunnels.ms/listar_handler');
 
       myws.current.onopen = () => {
         console.log('Conectado ao WebSocket de Listagem');
         myws.current?.send('nova sessão iniciada');
-        
+
         // Enviar mensagens de keep-alive periodicamente
         const keepAliveInterval = setInterval(() => {
           if (myws.current?.readyState === WebSocket.OPEN) {
@@ -249,7 +250,7 @@ function App() {
 
       myws.current.onclose = () => {
         console.log('Desconectado do WebSocket de Listagem');
-        
+
         // Tentar reconectar após 3 segundos
         setTimeout(() => {
           console.log('Tentando reconectar ao WebSocket...');
@@ -270,30 +271,49 @@ function App() {
     conectarJogo();
   }, []);
 
-  useEffect(() => {
-    const carregarJogo = async (id: number) => {
-      const obj: EntrarJogo = {
-        nome: "Laura",
-        idjogo: id
-      }
-      const jogoCarregado = await carregaJogo(obj);
-      console.log("jogo carregado: ", jogoCarregado);
-      setJogo(jogoCarregado);
-      setPlayers(jogoCarregado.jogadores);
+  const [nome, setNome] = useState("")
+  const carregarJogo = async () => {
+    if (!idjogo || !nome) {
+      return;
     }
-    if(idjogo){
-      carregarJogo(idjogo);
+    const obj: EntrarJogo = {
+      nome: nome,
+      idjogo: idjogo
+    };
+
+    const jogoCarregadoVerificacao = await carregaJogo(obj);
+
+    const jogadorExistente = jogoCarregadoVerificacao.jogadores.some((jogador) => jogador.nome === nome);
+
+    if (jogadorExistente) {
+      console.log("Jogador já está na partida");
+      setJogo(jogoCarregadoVerificacao);
+      setPlayers(jogoCarregadoVerificacao.jogadores);
+      setTurno(jogoCarregadoVerificacao.jogadores.find(jogador => jogador.nome === jogoCarregadoVerificacao.host)?.nome);
+      return;
     }
-  }, [idjogo]);
+
+    console.log("Jogador não encontrado, entrando no jogo");
+
+    const entrouJogo = await entraJogo(obj);
+    console.log("Entrou no jogo: ", entrouJogo);
+
+    const jogoCarregado = await carregaJogo(obj);
+    console.log("Jogo carregado após entrar: ", jogoCarregado);
+
+    setJogo(jogoCarregado);
+    setTurno(jogoCarregado.jogadores.find(jogador => jogador.nome === jogoCarregado.host)?.nome);
+    setPlayers(jogoCarregado.jogadores);
+  };
+
 
   const sendMessage = () => {
     if (socket) {
       socket.send(inputMessage);
-      setInputMessage('hello');
       console.log("tentou enviar");
     }
   };
-  
+
   return (
     <div className="w-full">
       <Tabs defaultValue="Jogadores" className="w-full">
@@ -317,20 +337,24 @@ function App() {
               Salas disponíveis
             </CardHeader>
             <CardContent>
-            {idsJogos ? (
-              idsJogos.split(';').map((numero) => (
-                <p className="border-[2px] border-[hsl(var(--primary))] mb-2" key={numero.trim()}>{numero.trim()}</p>
-              ))
-            ) : (
-              <>Nenhum jogo disponível</>
-            )}
+              {idsJogos ? (
+                idsJogos.split(';').map((numero) => (
+                  <p className="border-[2px] border-[hsl(var(--primary))] mb-2" key={numero.trim()}>{numero.trim()}</p>
+                ))
+              ) : (
+                <>Nenhum jogo disponível</>
+              )}
             </CardContent>
           </Card>
           <Card className="mb-2 mt-2 border-[hsl(var(--primary))]">
             <CardTitle className="text-xl">Entrar em jogo</CardTitle>
             <CardContent>
-            <Input
-                id="qtdplayers"
+              <Input
+                className="focus:ring-[hsl(var(--primary))] border-[hsl(var(--primary))] mb-2"
+                placeholder="Seu nome"
+                onChange={(e) => { setNome(e.target.value) }}
+              />
+              <Input
                 className="focus:ring-[hsl(var(--primary))] border-[hsl(var(--primary))]"
                 max={11111}
                 min={9999999}
@@ -342,53 +366,63 @@ function App() {
                     Number.parseInt(e.target.value) < 9999999
                   ) {
                     setidjogo(Number.parseInt(e.target.value));
-                    
+
                     return;
                   }
                   alert("A quantidade de jogadores é inválida.");
                 }}
               />
+              <Button onClick={carregarJogo} className="bg-[hsl(var(--primary))] mt-2">Entrar</Button>
             </CardContent>
           </Card>
           <Card className="border-[hsl(var(--primary))]">
             {jogo ? (
               <CardHeader>
-              <CardTitle className="text-xl">Partida de <strong>{jogo.host}</strong></CardTitle>
-              <CardDescription>
-                {jogo?.id && (
-                  <p className="text-xl">ID do jogo: <strong> {jogo.id}</strong></p>
-                )}
-              </CardDescription>
-            </CardHeader>
+                <CardTitle className="text-xl">
+                  Partida de <strong>{jogo.host}</strong>
+                  <p className="mt-2">Lista de Jogadores:</p>
+                  {jogo.jogadores.map((jogador) => (
+                    <p key={jogador.nome}>{jogador.nome === jogo.host ?
+                      (<strong>{jogador.nome}</strong>)
+                      : (<>{jogador.nome}</>)
+                    }</p>
+                  ))}
+                </CardTitle>
+                <CardDescription>
+                  {jogo?.id && (
+                    <p className="text-xl">ID do jogo: <strong> {jogo.id}</strong></p>
+                  )}
+                </CardDescription>
+              </CardHeader>
             ) : (
               <CardHeader>
-              <CardTitle className="text-xl">Novo Jogo</CardTitle>
-            </CardHeader>
+                <CardTitle className="text-xl">Novo Jogo</CardTitle>
+              </CardHeader>
             )}
             <CardContent className="space-y-2">
               {(!qtdPlayers && !jogo) && (
                 <>
-                <Label htmlFor="qtdplayers" className="mb-2">
-                Quantidade de jogadores
-              </Label>
-              <Input
-                id="qtdplayers"
-                className="focus:ring-[hsl(var(--primary))] border-[hsl(var(--primary))]"
-                max={7}
-                min={4}
-                ref={inputRef}
-                onBlur={(e) => {
-                  if (
-                    Number.parseInt(e.target.value) > 3 &&
-                    Number.parseInt(e.target.value) < 8
-                  ) {
-                    setQtdPlayers(Number.parseInt(e.target.value));
-                    return;
-                  }
-                  alert("A quantidade de jogadores é inválida.");
-                }}
-              />
-              </>
+                  <Label htmlFor="qtdplayers" className="mb-2">
+                    Quantidade de jogadores
+                  </Label>
+                  <Input
+                    id="qtdplayers"
+                    className="focus:ring-[hsl(var(--primary))] border-[hsl(var(--primary))]"
+                    max={7}
+                    min={4}
+                    ref={inputRef}
+                    onBlur={(e) => {
+                      if (
+                        Number.parseInt(e.target.value) > 3 &&
+                        Number.parseInt(e.target.value) < 8
+                      ) {
+                        setQtdPlayers(Number.parseInt(e.target.value));
+                        return;
+                      }
+                      alert("A quantidade de jogadores é inválida.");
+                    }}
+                  />
+                </>
               )}
               {qtdPlayers > 3 && qtdPlayers < 8 && (
                 <div>
@@ -410,20 +444,20 @@ function App() {
                   ))}
                 </div>
               )}
-			  				  <div>
-					<h1>WebSocket Chat</h1>
-					<div>
-						{messages.map((message, index) => (
-						<div key={index}>{message}</div>
-						))}
-					</div>
-					<input
-						type="text"
-						value={inputMessage}
-						onChange={(e) => setInputMessage(e.target.value)}
-					/>
-					<button type="button" onClick={sendMessage}>Enviar</button>
-					</div>
+              <div>
+                <h1>WebSocket Chat</h1>
+                <div>
+                  {messages.map((message, index) => (
+                    <div key={index}>{message}</div>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                />
+                <button type="button" onClick={sendMessage}>Enviar</button>
+              </div>
               <Sheet>
                 <SheetTrigger>
                   <Button className="bg-[hsl(var(--primary))] hover:cursor-pointer">
@@ -500,21 +534,32 @@ function App() {
                       : "border-[hsl(var(--primary))] space-y-1 mb-1"
                   }
                 >
-                  <CardHeader>
-                    <p>
-                      <strong>Nome:</strong> {player.nome}
-                    </p>
+                  <p>
+                    <strong>Nome:</strong> {player.nome}
+                  </p>
+                  {(player.nome === nome || player.funcao.nome === "Xerife") && (
 
-                    <CardHeader className="flex items-center space-x-4">
-                      <Avatar className="w-20 h-20">
-                        <img src={`${player.funcao.nome}.png`} alt="" />
-                      </Avatar>
+                    <CardHeader>
+                      <CardHeader className="flex items-center space-x-4">
+
+                        <Avatar className="w-20 h-20">
+                          <img src={`${player.funcao.nome}.png`} alt="" />
+                        </Avatar>
+                      </CardHeader>
+
+                      <p>
+                        {" "}
+                        <strong>Função: </strong> {player.funcao.nome}{" "}
+                      </p>
                     </CardHeader>
-                    <p>
-                      {" "}
-                      <strong>Função: </strong> {player.funcao.nome}{" "}
-                    </p>
+                  )}
+                  <CardHeader className="flex items-center space-x-4">
+
+                    <Avatar className="w-20 h-20">
+                      <img src={`${player.personagem.nome}.png`} alt="" />
+                    </Avatar>
                   </CardHeader>
+
                   <CardContent>
                     <p>
                       {" "}
@@ -540,114 +585,122 @@ function App() {
                           </span>
                         ))}
                       </div>
-					  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {player.cartas.map((carta, index) => {
-                        const [tipo, info] = Object.entries(carta)[0];
-                        return (
-                          <Card
-                            className="mb-2 border-[hsl(var(--primary))]"
-                            key={index}
-                          >
-                            <CardHeader className="flex items-center space-x-0">
-                              <CardSvgIcon tipo={tipo} size={45} />
-                              <p>
-                                <strong>{tipo}</strong>
-                              </p>
-                            </CardHeader>
-							<CardFooter className="flex flex-col items-center gap-2">
-							{turno === player.nome && tipo !== "Esquiva" && (
-                                <Button
-                                  onClick={async () => {
-                                    if (jogo) {
-                                      await usarCarta(carta, player, jogo);
-									  player.cartas = player.cartas.filter((c) => c !== carta);
-                                    }
-                                  }}
-                                  disabled={
-                                    player.personagem.atributos.vida_atual ===
+                        
+                      {player.nome === nome && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+
+    {player.cartas.map((carta, index) => {
+                          const [tipo, info] = Object.entries(carta)[0];
+                          return (
+                            <Card
+                              className="mb-2 border-[hsl(var(--primary))]"
+                              key={index}
+                            >
+                              <CardHeader className="flex items-center space-x-0">
+                                <CardSvgIcon tipo={tipo} size={45} />
+                                <p>
+                                  <strong>{tipo}</strong>
+                                </p>
+                              </CardHeader>
+                              <CardFooter className="flex flex-col items-center gap-2">
+                                {turno === player.nome && player.nome === nome && tipo !== "Esquiva" && (
+                                  <Button
+                                    onClick={async () => {
+                                      if (jogo) {
+                                        await usarCarta(carta, player, jogo);
+                                        player.cartas = player.cartas.filter((c) => c !== carta);
+                                      }
+                                    }}
+                                    disabled={
+                                      player.personagem.atributos.vida_atual ===
                                       player.personagem.atributos.vida_maxima &&
-                                    tipo === "Cerveja"
-                                  }
-                                  className="bg-[hsl(var(--primary))]  hover:cursor-pointer"
+                                      tipo === "Cerveja"
+                                    }
+                                    className="bg-[hsl(var(--primary))]  hover:cursor-pointer"
+                                  >
+                                    {player.personagem.atributos.vida_atual ===
+                                      player.personagem.atributos.vida_maxima &&
+                                      tipo === "Cerveja"
+                                      ? "Vida cheia"
+                                      : "Usar carta"}
+                                  </Button>
+                                )}
+                                <DetalhesCarta carta={carta} />
+                                {(turno === player.nome && player.nome === nome)
+                                && (<Button
+                                  className="bg-[hsl(var(--primary))] hover:cursor-pointer"
+                                  onClick={() => descartarCarta(carta, indexPlayer, player.nome, tipo)}
                                 >
-                                  {player.personagem.atributos.vida_atual ===
-                                    player.personagem.atributos.vida_maxima &&
-                                  tipo === "Cerveja"
-                                    ? "Vida cheia"
-                                    : "Usar carta"}
-                                </Button>
-                              )}
-								<DetalhesCarta carta={carta}/>
-								<Button
-								className="bg-[hsl(var(--primary))] hover:cursor-pointer"
-								onClick={() => descartarCarta(carta, indexPlayer, player.nome, tipo)}
-								>
-								Descartar
-								</Button>
-                            </CardFooter>
-                          </Card>
-                        );
-                      })}
-					  </div>
+                                  Descartar
+                                </Button>)}
+                              </CardFooter>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                          
+                        )}
+                        
+                        
                       {turno === player.nome && (
                         <Button
                           onClick={async () => {
                             if (players[indexPlayer + 1]) {
                               setTurno(players[indexPlayer + 1].nome);
-							  const log: LogsCartas = {
-								nomeCarta: "Fim de Turno",
-								descricao: `${player.nome} passou a vez para ${players[indexPlayer + 1].nome}.`,
-								nomeJogador: `${player.nome}`
-							  }
-							  setLogs((prevLogs) => [...prevLogs, log]);
+                              const log: LogsCartas = {
+                                nomeCarta: "Fim de Turno",
+                                descricao: `${player.nome} passou a vez para ${players[indexPlayer + 1].nome}.`,
+                                nomeJogador: `${player.nome}`
+                              }
+                              setLogs((prevLogs) => [...prevLogs, log]);
                               toast(
                                 `${player.nome} passou a vez para ${players[indexPlayer + 1].nome}.`,
                               );
 
-							  const novasCartas = await comprarCartas(players[indexPlayer + 1]);
-							  players[indexPlayer + 1].cartas = players[indexPlayer + 1].cartas.concat(novasCartas);
-							  const logCompra: LogsCartas = {
-								nomeCarta: "Compra",
-								descricao: `${players[indexPlayer + 1].nome} comprou ${novasCartas.length} cartas.`,
-								nomeJogador: `${player.nome}`
-							  };
-							  toast(
+                              const novasCartas = await comprarCartas(players[indexPlayer + 1]);
+                              players[indexPlayer + 1].cartas = players[indexPlayer + 1].cartas.concat(novasCartas);
+                              const logCompra: LogsCartas = {
+                                nomeCarta: "Compra",
+                                descricao: `${players[indexPlayer + 1].nome} comprou ${novasCartas.length} cartas.`,
+                                nomeJogador: `${player.nome}`
+                              };
+                              toast(
                                 `${players[indexPlayer + 1].nome} comprou ${novasCartas.length} cartas.`,
                               );
-							  setLogs((prevLogs) => [...prevLogs, logCompra]);
+                              setLogs((prevLogs) => [...prevLogs, logCompra]);
                             }
-                            if (!players[indexPlayer + 1]) {								
+                            if (!players[indexPlayer + 1]) {
                               setTurno(players[0].nome);
-							  const log: LogsCartas = {
-								nomeCarta: "Fim de Turno",
-								descricao: `${player.nome} passou a vez para ${players[0].nome}.`,
-								nomeJogador: `${player.nome}`
-							  }
-							  setLogs((prevLogs) => [...prevLogs, log]);
+                              const log: LogsCartas = {
+                                nomeCarta: "Fim de Turno",
+                                descricao: `${player.nome} passou a vez para ${players[0].nome}.`,
+                                nomeJogador: `${player.nome}`
+                              }
+                              setLogs((prevLogs) => [...prevLogs, log]);
                               toast(
                                 `${player.nome} passou a vez para ${players[0].nome}.`,
                               );
-							  const novasCartas = await comprarCartas(players[0]);
-							  players[0].cartas = players[0].cartas.concat(novasCartas);
-							  const logCompra: LogsCartas = {
-								nomeCarta: "Compra",
-								descricao: `${players[0].nome} comprou ${novasCartas.length} cartas.`,
-								nomeJogador: `${player.nome}`
-							  };
-							  toast(
+                              const novasCartas = await comprarCartas(players[0]);
+                              players[0].cartas = players[0].cartas.concat(novasCartas);
+                              const logCompra: LogsCartas = {
+                                nomeCarta: "Compra",
+                                descricao: `${players[0].nome} comprou ${novasCartas.length} cartas.`,
+                                nomeJogador: `${player.nome}`
+                              };
+                              toast(
                                 `${players[0].nome} comprou ${novasCartas.length} cartas.`,
                               );
-							  setLogs((prevLogs) => [...prevLogs, logCompra]);
+                              setLogs((prevLogs) => [...prevLogs, logCompra]);
                             }
                           }}
                           className="bg-[hsl(var(--primary))] hover:cursor-pointer"
-						  disabled={
-							player.personagem.atributos.vida_atual < player.cartas.length
-						  }
+                          disabled={
+                            player.personagem.atributos.vida_atual < player.cartas.length
+                          }
                         >
                           {player.personagem.atributos.vida_atual < player.cartas.length ? (
-							`Descarte ou jogue ${player.cartas.length - player.personagem.atributos.vida_atual} cartas antes de passar o turno.`
-						  ) : ("Passar o turno")}
+                            `Descarte ou jogue ${player.cartas.length - player.personagem.atributos.vida_atual} cartas antes de passar o turno.`
+                          ) : ("Passar o turno")}
                         </Button>
                       )}
                     </div>
