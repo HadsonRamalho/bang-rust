@@ -9,6 +9,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use serde::{Serialize, Deserialize};
 
+use super::cartas::LogCarta;
 use super::personagens::{self, lista_personagens, Personagem};
 use super::{criar_baralho, escolher_cargo, AppState, Funcao, TipoFuncao};
 
@@ -211,10 +212,6 @@ pub async fn carregar_jogo(Extension(state): Extension<Arc<AppState>>, input: Js
     return Ok((StatusCode::OK, Json(jogo.to_owned())))
 }
 
-pub async fn atualiza_turno(){
-
-}
-
 pub async fn passar_turno(Extension(state): Extension<Arc<AppState>>, input: Json<EntrarJogo>)
     -> Result<(StatusCode, Json<Jogo>), StatusCode>{
     {
@@ -227,6 +224,12 @@ pub async fn passar_turno(Extension(state): Extension<Arc<AppState>>, input: Jso
     }
     let mut jogos = carrega_jogos(&state).await;
     let jogo = jogos.iter_mut().find(|jogo| jogo.id == input.idjogo).unwrap();
+
+    jogo.logs.push(LogCarta{
+        nome_carta: "Sistema".to_string(),
+        nome_jogador: input.nome.to_string(),
+        descricao: format!("Agora é a vez de {}.", input.nome)
+    });
     
     if jogo.jogadores.iter().any(|jogador| jogador.nome == input.nome){
         jogo.turno = input.nome.to_string();

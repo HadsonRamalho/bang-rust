@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import type { Jogador } from "./interfaces/player/player";
-import type { CarregarJogoType, EntrarJogo, Jogo, LogsCartas } from "./interfaces/game/game";
+import type { CarregarJogoType, EntrarJogo, Jogo, LogCarta, LogsCartas } from "./interfaces/game/game";
 import { Bullet } from "./components/bullet";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,7 +45,7 @@ function App() {
   const [players, setPlayers] = useState<Jogador[]>([]);
   const [personagens, setPersonagens] = useState<Personagem[]>([]);
 
-  const [logs, setLogs] = useState<LogsCartas[]>([]);
+  const [logs, setLogs] = useState<LogCarta[]>([]);
 
   const [turno, setTurno] = useState(
     players.find((player) => player.funcao.nome === "Xerife")?.nome,
@@ -66,10 +66,10 @@ function App() {
     if (res.id === 0) {
       return;
     }
-    const novoLog: LogsCartas = {
-      nomeCarta: "Sistema",
+    const novoLog: LogCarta = {
+      nome_carta: "Sistema",
       descricao: "O jogo iniciou!",
-      nomeJogador: "Sistema",
+      nome_jogador: "Sistema",
     };
     setLogs((prevLogs) => [...prevLogs, novoLog]);
     const turnoAtual = res.jogadores.find(
@@ -81,16 +81,17 @@ function App() {
         backgroundColor: "hsl(var(--orange-1))",
       },
     });
-    const logXerife: LogsCartas = {
-      nomeCarta: "Sistema",
+    const logXerife: LogCarta = {
+      nome_carta: "Sistema",
       descricao: `${turnoAtual} é o Xerife!`,
-      nomeJogador: "Sistema",
+      nome_jogador: "Sistema",
     };
     setLogs((prevLogs) => [...prevLogs, logXerife]);
     setPlayers(res.jogadores);
     console.log("idjogo: ", res.id);
     setJogo(res);
     setTurno(res.turno);
+    setLogs(logs);
     const ws = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/listar_handler');
 
     ws.onopen = () => {
@@ -143,9 +144,9 @@ function App() {
         })
           ;
       }
-      const log: LogsCartas = {
-        nomeCarta: descricao.nome,
-        nomeJogador: jogador.nome,
+      const log: LogCarta = {
+        nome_carta: descricao.nome,
+        nome_jogador: jogador.nome,
         descricao: descricao.descricao,
       };
       setLogs((prevLogs) => [...prevLogs, log]);
@@ -495,12 +496,12 @@ function App() {
                           {logs.length > 0 ? (
                             logs.map((log, index) => (
                               <TableRow
-                                key={`${log.nomeJogador}-${log.nomeCarta}-${index}`}
+                                key={`${log.nome_jogador}-${log.nome_carta}-${index}`}
                               >
                                 <TableCell className="font-medium">
-                                  {log.nomeJogador}
+                                  {log.nome_jogador}
                                 </TableCell>
-                                <TableCell>{log.nomeCarta}</TableCell>
+                                <TableCell>{log.nome_carta}</TableCell>
                                 <TableCell>
                                   <Button
                                     className="bg-[hsl(var(--primary))] hover:cursor-pointer"
@@ -663,10 +664,10 @@ function App() {
                             if (players[indexPlayer + 1]) {
                               await passarTurno(players[indexPlayer + 1].nome);
                               
-                              const log: LogsCartas = {
-                                nomeCarta: "Fim de Turno",
+                              const log: LogCarta = {
+                                nome_carta: "Fim de Turno",
                                 descricao: `${player.nome} passou a vez para ${players[indexPlayer + 1].nome}.`,
-                                nomeJogador: `${player.nome}`
+                                nome_jogador: `${player.nome}`
                               }
                               setLogs((prevLogs) => [...prevLogs, log]);
                               toast(
@@ -675,10 +676,10 @@ function App() {
 
                               const novasCartas = await comprarCartas(players[indexPlayer + 1]);
                               players[indexPlayer + 1].cartas = players[indexPlayer + 1].cartas.concat(novasCartas);
-                              const logCompra: LogsCartas = {
-                                nomeCarta: "Compra",
+                              const logCompra: LogCarta = {
+                                nome_carta: "Compra",
                                 descricao: `${players[indexPlayer + 1].nome} comprou ${novasCartas.length} cartas.`,
-                                nomeJogador: `${player.nome}`
+                                nome_jogador: `${players[indexPlayer + 1].nome}`
                               };
                               toast(
                                 `${players[indexPlayer + 1].nome} comprou ${novasCartas.length} cartas.`,
@@ -688,10 +689,10 @@ function App() {
                             if (!players[indexPlayer + 1]) {
                               await passarTurno(players[0].nome);
 
-                              const log: LogsCartas = {
-                                nomeCarta: "Fim de Turno",
+                              const log: LogCarta = {
+                                nome_carta: "Fim de Turno",
                                 descricao: `${player.nome} passou a vez para ${players[0].nome}.`,
-                                nomeJogador: `${player.nome}`
+                                nome_jogador: `${player.nome}`
                               }
                               setLogs((prevLogs) => [...prevLogs, log]);
                               toast(
@@ -699,10 +700,10 @@ function App() {
                               );
                               const novasCartas = await comprarCartas(players[0]);
                               players[0].cartas = players[0].cartas.concat(novasCartas);
-                              const logCompra: LogsCartas = {
-                                nomeCarta: "Compra",
+                              const logCompra: LogCarta = {
+                                nome_carta: "Compra",
                                 descricao: `${players[0].nome} comprou ${novasCartas.length} cartas.`,
-                                nomeJogador: `${player.nome}`
+                                nome_jogador: `${players[0].nome}`
                               };
                               toast(
                                 `${players[0].nome} comprou ${novasCartas.length} cartas.`,

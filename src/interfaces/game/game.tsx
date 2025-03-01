@@ -5,7 +5,14 @@ export interface Jogo {
   jogadores: Jogador[],
   id: number,
   host: string,
-  turno: string
+  turno: string,
+  logs: LogCarta[],
+}
+
+export interface LogCarta{
+  nome_carta: string;
+  nome_jogador: string;
+  descricao: string;
 }
 
 export interface ResUsoCarta{

@@ -1,7 +1,7 @@
 use std::sync::{Arc};
 
 use axum::{Extension, Json};
-use cartas::{lista_cartas, Carta};
+use cartas::{lista_cartas, Carta, LogCarta};
 use personagens::{lista_personagens, Personagem};
 use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
@@ -41,7 +41,8 @@ pub struct Jogo{
     pub jogadores: Vec<Jogador>,
     pub id: u32,
     pub host: String,
-    pub turno: String
+    pub turno: String,
+    pub logs: Vec<LogCarta>
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -126,7 +127,8 @@ pub async fn iniciar_jogo(Extension(state): Extension<Arc<AppState>>, input: Jso
             jogadores: Vec::new(),
             id: 0 as u32,
             host: "".to_string(),
-            turno: "".to_string()
+            turno: "".to_string(),
+            logs: Vec::new()
         });
     }
 
@@ -235,7 +237,8 @@ pub async fn iniciar_jogo(Extension(state): Extension<Arc<AppState>>, input: Jso
         id: id.clone(),
         host: players[0].nome.clone(),
         jogadores: players.clone(),
-        turno: players[0].nome.clone()
+        turno: players[0].nome.clone(),
+        logs: vec![]
     };
 
     let game2 = Jogo{
@@ -243,6 +246,7 @@ pub async fn iniciar_jogo(Extension(state): Extension<Arc<AppState>>, input: Jso
         host: players[0].nome.clone(),
         turno: players[0].nome.clone(),
         jogadores: players,
+        logs: vec![]
     };
 
     {

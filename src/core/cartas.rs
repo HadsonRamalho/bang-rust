@@ -19,6 +19,13 @@ pub enum Carta{
     Saloon(InfoCarta)
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct LogCarta{
+    pub nome_carta: String,
+    pub nome_jogador: String,
+    pub descricao: String
+}
+
 pub async fn lista_cartas()
     -> Json<Vec<Carta>>{
     let cartas = vec![
