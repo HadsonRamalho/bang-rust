@@ -1,5 +1,8 @@
 use axum::Json;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
+
+use super::{personagens::Personagem, Jogador};
 
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -43,6 +46,34 @@ pub async fn lista_cartas()
             recuperando 1 ponto de vida de cada um dos jogadores ainda em jogo.".to_string()
         })
     ];
+
+    Json(cartas)
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Qtd{
+    qtd: i32
+}
+
+pub async fn compra_cartas(input: Json<Qtd>)
+    -> Json<Vec<Carta>>{
+    let limite = input.0.qtd;
+
+    let limite_compra = limite;
+    
+    let cartas = lista_cartas().await.0;
+    let cartas2 = lista_cartas().await.0;
+    let cartas3 = lista_cartas().await.0;
+    let mut cartasfinal = cartas.clone();
+    cartasfinal.extend(cartas2);
+    cartasfinal.extend(cartas3);
+
+    let mut cartas = vec![];
+    let mut rng = StdRng::from_os_rng();
+    for i in 0..limite_compra.min(cartasfinal.len() as i32) {
+        let index = rng.random_range(0..limite_compra);
+        cartas.push(cartasfinal[index as usize].clone());
+    }
 
     Json(cartas)
 }

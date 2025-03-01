@@ -1,6 +1,6 @@
 import { Personagem } from "@/interfaces/character/character";
 import { client } from "..";
-import { Jogo } from "../../interfaces/game/game";
+import { Jogo, ResUsoCarta } from "../../interfaces/game/game";
 import { Carta } from "@/interfaces/cards/cards";
 import { Jogador } from "@/interfaces/player/player";
 
@@ -34,16 +34,34 @@ export async function listaPersonagens(): Promise<Personagem[]> {
   }
 }
 
-export async function usaCarta(carta: Carta, jogador: Jogador, jogo: Jogo){
+export async function usaCarta(carta: Carta, jogador: Jogador, jogo: Jogo): Promise<ResUsoCarta> {
   try {
-    await client.post("/usa_carta", {
+    const res = await client.post<ResUsoCarta>("/usa_carta", {
       carta, jogo, jogador
     });
+    const data: ResUsoCarta = res.data;
+    return data;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error(error.response?.status, error.message);
     throw new Error(
-      `Falha ao carregar o jogo: Código [${error.response?.status}]`
+      `Falha ao usar a carta: Código [${error.response?.status}]`
+    );
+  }
+}
+
+export async function compraCartas(qtd: number): Promise<Carta[]> {
+  try {
+    const res = await client.post<Carta[]>("/compra_cartas", {
+      qtd
+    });
+    const data: Carta[] = res.data;
+    return data;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    console.error(error.response?.status, error.message);
+    throw new Error(
+      `Falha ao comprar cartas: Código [${error.response?.status}]`
     );
   }
 }
