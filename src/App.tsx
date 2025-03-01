@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import type { Jogador } from "./interfaces/player/player";
-import type { Jogo, LogsCartas } from "./interfaces/game/game";
+import type { CarregarJogoType, EntrarJogo, Jogo, LogsCartas } from "./interfaces/game/game";
 import { Bullet } from "./components/bullet";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { compraCartas, iniciaJogo, listaPersonagens, usaCarta } from "./services/game/game";
+import { carregaJogo, compraCartas, iniciaJogo, listaPersonagens, usaCarta } from "./services/game/game";
 import type { Personagem } from "./interfaces/character/character";
 import { Avatar } from "./components/ui/avatar";
 import { CardSvgIcon } from "./components/card-svg-icon";
@@ -54,6 +54,8 @@ function App() {
   const [qtdPlayers, setQtdPlayers] = useState(0);
   const [jogo, setJogo] = useState<Jogo>();
 
+  const [idjogo, setidjogo] = useState<number>();
+
   const [playerNames, setPlayerNames] = useState<string[]>(
     Array(qtdPlayers).fill(""),
   );
@@ -88,6 +90,31 @@ function App() {
     setPlayers(res.jogadores);
     console.log("idjogo: ", res.id);
     setJogo(res);
+    const ws = new WebSocket('ws://g6v9psc0-3069.brs.devtunnels.ms/listar_handler');
+
+    ws.onopen = () => {
+      console.log('Conectado ao WebSocket de Listagem do LoadGame');
+      ws.send('novo jogo criado');
+    };
+
+    ws.onmessage = (event) => {
+      const newMessage = event.data;
+      setIdsJogos(newMessage);
+    };
+
+    ws.onerror = (error) => {
+      console.error('Erro no WebSocket do LoadGame:', error);
+      alert("erro no websocket do loadgame");
+    };
+
+    ws.onclose = () => {
+      console.log('Desconectado do WebSocket de Listagem do LoadGame');
+    };
+
+    return () => {
+      ws.close();
+    };
+
   };
 
   const loadCharacters = async () => {
@@ -158,12 +185,18 @@ function App() {
     replacement: { _: /\d/ },
   });
 
+  const inputRefEntrar = useMask({
+    mask: "_________",
+    replacement: { _: /\d/ },
+  });
+
   const [messages, setMessages] = useState<string[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [socket, setSocket] = useState<WebSocket | null>(null);
 
+
   const conectarJogo = () => {
-    const ws = new WebSocket('ws://127.0.0.1:3069/ws');
+    const ws = new WebSocket('ws://g6v9psc0-3069.brs.devtunnels.ms/ws');
 
     ws.onopen = () => {
       console.log('Conectado ao WebSocket');
@@ -187,34 +220,46 @@ function App() {
 
   const [idsJogos, setIdsJogos] = useState<string>();
 
-  const listarJogos = () => {
-    const ws = new WebSocket('ws://127.0.0.1:3069/listar_handler');
-
+  useEffect(() => {
+    const ws = new WebSocket("ws://127.0.0.1:3069/listar_handler");
     ws.onopen = () => {
-      console.log('Conectado ao WebSocket de Listagem');
-      setSocket(ws);
+      console.log("Conectado ao WebSocket de Listagem");
+      ws.send("nova sessão iniciada");
     };
-
     ws.onmessage = (event) => {
       const newMessage = event.data;
-      console.log(newMessage);
       setIdsJogos(newMessage);
     };
-
-    ws.onclose = () => {
-      console.log('Desconectado do WebSocket de Listagem');
-      setSocket(null);
+    ws.onerror = (error) => {
+      console.error("Erro no WebSocket:", error);
     };
-
+    ws.onclose = () => {
+      console.log("Desconectado do WebSocket de Listagem");
+    };
     return () => {
       ws.close();
     };
-  }
+  }, []);
 
   useEffect(() => {
     conectarJogo();
-    listarJogos();
   }, []);
+
+  useEffect(() => {
+    const carregarJogo = async (id: number) => {
+      const obj: EntrarJogo = {
+        nome: "Laura",
+        idjogo: id
+      }
+      const jogoCarregado = await carregaJogo(obj);
+      console.log("jogo carregado: ", jogoCarregado);
+      setJogo(jogoCarregado);
+      setPlayers(jogoCarregado.jogadores);
+    }
+    if(idjogo){
+      carregarJogo(idjogo);
+    }
+  }, [idjogo]);
 
   const sendMessage = () => {
     if (socket) {
@@ -256,13 +301,49 @@ function App() {
             )}
             </CardContent>
           </Card>
+          <Card className="mb-2 mt-2 border-[hsl(var(--primary))]">
+            <CardTitle className="text-xl">Entrar em jogo</CardTitle>
+            <CardContent>
+            <Input
+                id="qtdplayers"
+                className="focus:ring-[hsl(var(--primary))] border-[hsl(var(--primary))]"
+                max={11111}
+                min={9999999}
+                ref={inputRefEntrar}
+                placeholder="ID do jogo"
+                onBlur={(e) => {
+                  if (
+                    Number.parseInt(e.target.value) > 11111 &&
+                    Number.parseInt(e.target.value) < 9999999
+                  ) {
+                    setidjogo(Number.parseInt(e.target.value));
+                    
+                    return;
+                  }
+                  alert("A quantidade de jogadores é inválida.");
+                }}
+              />
+            </CardContent>
+          </Card>
           <Card className="border-[hsl(var(--primary))]">
-            <CardHeader>
-              <CardTitle>Iniciar Jogo</CardTitle>
-              <CardDescription>Testano</CardDescription>
+            {jogo ? (
+              <CardHeader>
+              <CardTitle className="text-xl">Partida de <strong>{jogo.host}</strong></CardTitle>
+              <CardDescription>
+                {jogo?.id && (
+                  <p className="text-xl">ID do jogo: <strong> {jogo.id}</strong></p>
+                )}
+              </CardDescription>
             </CardHeader>
+            ) : (
+              <CardHeader>
+              <CardTitle className="text-xl">Novo Jogo</CardTitle>
+            </CardHeader>
+            )}
             <CardContent className="space-y-2">
-              <Label htmlFor="qtdplayers" className="mb-2">
+              {(!qtdPlayers && !jogo) && (
+                <>
+                <Label htmlFor="qtdplayers" className="mb-2">
                 Quantidade de jogadores
               </Label>
               <Input
@@ -282,6 +363,8 @@ function App() {
                   alert("A quantidade de jogadores é inválida.");
                 }}
               />
+              </>
+              )}
               {qtdPlayers > 3 && qtdPlayers < 8 && (
                 <div>
                   {Array.from({ length: qtdPlayers }).map((_, index) => (

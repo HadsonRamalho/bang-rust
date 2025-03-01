@@ -20,7 +20,6 @@ async fn handle_socket(Extension(state): Extension<Arc<AppState>>, mut socket: W
         if let Ok(msg) = msg {
             if let Message::Text(text) = msg {
                 println!("{}", text);
-                printa_jogos(&state).await;
                 if socket.send(Message::Text(text)).await.is_err() {                    
                     break;
                 }
@@ -38,19 +37,36 @@ async fn listar_handler(Extension(state): Extension<Arc<AppState>>, ws: WebSocke
     ws.on_upgrade(move |socket| handle_listar(Extension(state.clone()), socket))
 }
 
-async fn handle_listar(Extension(state): Extension<Arc<AppState>>, mut socket: WebSocket) {
+
+pub async fn handle_listar(Extension(state): Extension<Arc<AppState>>, mut socket: WebSocket) {
     printa_jogos(&state).await;
-    let jogos_list = carrega_jogos(&state).await;
-    let mut ids: String = Default::default();
-    for jogo in jogos_list{
-        let id = jogo.id.to_string() + "; ";
-        ids.push_str(&id);
-    }
-    if socket.send(Message::Text(
-        ids.into()
-    )).await.is_err() {  
-        println!("Erro no handle_listar");
-    }
+    println!("Socket aberto e pronto para receber mensagens.");
+
+    while let Some(msg) = socket.recv().await {
+        println!("Mensagem recebida: {:?}", msg);
+
+        if let Ok(msg) = msg {
+            println!("Mensagem decodificada com sucesso.");
+
+            let jogos_list = carrega_jogos(&state).await;
+            println!("Jogos carregados");
+
+            let ids: String = jogos_list.iter()
+                                        .map(|jogo| jogo.id.to_string())
+                                        .collect::<Vec<String>>()
+                                        .join("; ");
+            println!("IDs gerados: {}", ids);
+                                        
+            if socket.send(Message::Text(ids.into())).await.is_err() {  
+                println!("Erro ao enviar mensagem no handle_listar.");
+            }            
+        } else {
+            println!("Erro ao decodificar mensagem.");
+        }
+        break;
+    }    
+
+    println!("Fim do handle_listar.");
 }
 
 pub fn cria_rotas() -> Router<>{

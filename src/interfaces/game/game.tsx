@@ -18,3 +18,8 @@ export interface LogsCartas{
   nomeJogador: string,
   descricao: string
 }
+
+export interface EntrarJogo{
+  nome: string;
+  idjogo: number;
+}

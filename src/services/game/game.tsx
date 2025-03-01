@@ -1,6 +1,6 @@
 import { Personagem } from "@/interfaces/character/character";
 import { client } from "..";
-import { Jogo, ResUsoCarta } from "../../interfaces/game/game";
+import { CarregarJogoType, EntrarJogo, Jogo, ResUsoCarta } from "../../interfaces/game/game";
 import { Carta } from "@/interfaces/cards/cards";
 import { Jogador } from "@/interfaces/player/player";
 
@@ -65,3 +65,21 @@ export async function compraCartas(qtd: number): Promise<Carta[]> {
     );
   }
 }
+
+export async function carregaJogo(entrarJogo: EntrarJogo): Promise<Jogo> {
+  try {
+    const res = await client.post<Jogo>('https://g6v9psc0-3069.brs.devtunnels.ms/carregar_jogo', {
+      nome: entrarJogo.nome,
+      idjogo: entrarJogo.idjogo,
+    });
+    const data: Jogo = res.data;
+    return data;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    console.error(error.response?.status, error.message);
+    throw new Error(
+      `Falha ao carregar o jogo: Código [${error.response?.status}]`
+    );
+  }
+}
+
