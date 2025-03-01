@@ -4,7 +4,8 @@ import { Jogador } from "../player/player";
 export interface Jogo {
   jogadores: Jogador[],
   id: number,
-  host: string
+  host: string,
+  turno: string
 }
 
 export interface ResUsoCarta{

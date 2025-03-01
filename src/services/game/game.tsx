@@ -68,7 +68,7 @@ export async function compraCartas(qtd: number): Promise<Carta[]> {
 
 export async function carregaJogo(entrarJogo: EntrarJogo): Promise<Jogo> {
   try {
-    const res = await client.post<Jogo>('https://kc9d45zp-3069.brs.devtunnels.ms/carregar_jogo', {
+    const res = await client.post<Jogo>('https://g6v9psc0-3069.brs.devtunnels.ms/carregar_jogo', {
       nome: entrarJogo.nome,
       idjogo: entrarJogo.idjogo,
     });
@@ -85,7 +85,7 @@ export async function carregaJogo(entrarJogo: EntrarJogo): Promise<Jogo> {
 
 export async function entraJogo(entrarJogo: EntrarJogo): Promise<Jogo> {
   try {
-    const res = await client.post<Jogo>('https://kc9d45zp-3069.brs.devtunnels.ms/entrar_jogo', {
+    const res = await client.post<Jogo>('https://g6v9psc0-3069.brs.devtunnels.ms/entrar_jogo', {
       nome: entrarJogo.nome,
       idjogo: entrarJogo.idjogo,
     });
@@ -100,4 +100,19 @@ export async function entraJogo(entrarJogo: EntrarJogo): Promise<Jogo> {
   }
 }
 
-
+export async function passaTurno(entrarJogo: EntrarJogo): Promise<Jogo> {
+  try {
+    const res = await client.post<Jogo>('https://g6v9psc0-3069.brs.devtunnels.ms/passar_turno', {
+      nome: entrarJogo.nome,
+      idjogo: entrarJogo.idjogo,
+    });
+    const data: Jogo = res.data;
+    return data;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    console.error(error.response?.status, error.message);
+    throw new Error(
+      `Falha ao passar o turno: Código [${error.response?.status}]`
+    );
+  }
+}

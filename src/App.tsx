@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { carregaJogo, compraCartas, entraJogo, iniciaJogo, listaPersonagens, usaCarta } from "./services/game/game";
+import { carregaJogo, compraCartas, entraJogo, iniciaJogo, listaPersonagens, passaTurno, usaCarta } from "./services/game/game";
 import type { Personagem } from "./interfaces/character/character";
 import { Avatar } from "./components/ui/avatar";
 import { CardSvgIcon } from "./components/card-svg-icon";
@@ -90,7 +90,8 @@ function App() {
     setPlayers(res.jogadores);
     console.log("idjogo: ", res.id);
     setJogo(res);
-    const ws = new WebSocket('wss://kc9d45zp-3069.brs.devtunnels.ms/listar_handler');
+    setTurno(res.turno);
+    const ws = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/listar_handler');
 
     ws.onopen = () => {
       console.log('Conectado ao WebSocket de Listagem do LoadGame');
@@ -180,6 +181,20 @@ function App() {
     });
   };
 
+  const passarTurno = async (nome: string) => {
+    console.log(idjogo);
+    if(idjogo){
+      console.log("setando");
+      const jogoTurno = await passaTurno({
+        nome: nome,
+        idjogo: idjogo
+      });
+      setJogo(jogoTurno);
+      setTurno(jogoTurno.turno);
+      console.log("Jogo setado: ", jogoTurno);
+    }
+  }
+
   const inputRef = useMask({
     mask: "_",
     replacement: { _: /\d/ },
@@ -196,7 +211,7 @@ function App() {
 
 
   const conectarJogo = () => {
-    const ws = new WebSocket('wss://kc9d45zp-3069.brs.devtunnels.ms/ws');
+    const ws = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/ws');
 
     ws.onopen = () => {
       console.log('Conectado ao WebSocket');
@@ -223,7 +238,7 @@ function App() {
 
   useEffect(() => {
     const connect = () => {
-      myws.current = new WebSocket('wss://kc9d45zp-3069.brs.devtunnels.ms/listar_handler');
+      myws.current = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/listar_handler');
 
       myws.current.onopen = () => {
         console.log('Conectado ao WebSocket de Listagem');
@@ -289,7 +304,7 @@ function App() {
       console.log("Jogador já está na partida");
       setJogo(jogoCarregadoVerificacao);
       setPlayers(jogoCarregadoVerificacao.jogadores);
-      setTurno(jogoCarregadoVerificacao.jogadores.find(jogador => jogador.nome === jogoCarregadoVerificacao.host)?.nome);
+      setTurno(jogoCarregadoVerificacao.turno);
       return;
     }
 
@@ -302,8 +317,8 @@ function App() {
     console.log("Jogo carregado após entrar: ", jogoCarregado);
 
     setJogo(jogoCarregado);
-    setTurno(jogoCarregado.jogadores.find(jogador => jogador.nome === jogoCarregado.host)?.nome);
     setPlayers(jogoCarregado.jogadores);
+    setTurno(jogoCarregado.turno);
   };
 
 
@@ -646,7 +661,8 @@ function App() {
                         <Button
                           onClick={async () => {
                             if (players[indexPlayer + 1]) {
-                              setTurno(players[indexPlayer + 1].nome);
+                              await passarTurno(players[indexPlayer + 1].nome);
+                              
                               const log: LogsCartas = {
                                 nomeCarta: "Fim de Turno",
                                 descricao: `${player.nome} passou a vez para ${players[indexPlayer + 1].nome}.`,
@@ -670,7 +686,8 @@ function App() {
                               setLogs((prevLogs) => [...prevLogs, logCompra]);
                             }
                             if (!players[indexPlayer + 1]) {
-                              setTurno(players[0].nome);
+                              await passarTurno(players[0].nome);
+
                               const log: LogsCartas = {
                                 nomeCarta: "Fim de Turno",
                                 descricao: `${player.nome} passou a vez para ${players[0].nome}.`,
@@ -690,7 +707,7 @@ function App() {
                               toast(
                                 `${players[0].nome} comprou ${novasCartas.length} cartas.`,
                               );
-                              setLogs((prevLogs) => [...prevLogs, logCompra]);
+                              setLogs((prevLogs) => [...prevLogs, logCompra]);                              
                             }
                           }}
                           className="bg-[hsl(var(--primary))] hover:cursor-pointer"

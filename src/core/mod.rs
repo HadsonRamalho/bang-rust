@@ -40,7 +40,8 @@ pub struct Funcao{
 pub struct Jogo{
     pub jogadores: Vec<Jogador>,
     pub id: u32,
-    pub host: String
+    pub host: String,
+    pub turno: String
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -124,7 +125,8 @@ pub async fn iniciar_jogo(Extension(state): Extension<Arc<AppState>>, input: Jso
         return Json(Jogo{
             jogadores: Vec::new(),
             id: 0 as u32,
-            host: "".to_string()
+            host: "".to_string(),
+            turno: "".to_string()
         });
     }
 
@@ -233,11 +235,13 @@ pub async fn iniciar_jogo(Extension(state): Extension<Arc<AppState>>, input: Jso
         id: id.clone(),
         host: players[0].nome.clone(),
         jogadores: players.clone(),
+        turno: players[0].nome.clone()
     };
 
     let game2 = Jogo{
         id,
         host: players[0].nome.clone(),
+        turno: players[0].nome.clone(),
         jogadores: players,
     };
 

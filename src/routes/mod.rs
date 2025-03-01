@@ -5,7 +5,7 @@ use hyper::Method;
 use tokio::sync::Mutex;
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::core::{cartas::compra_cartas, iniciar_jogo, jogos::{self, carrega_jogos, carregar_jogo, entrar_jogo}, personagens::lista_personagens, AppState, Jogo};
+use crate::core::{cartas::compra_cartas, iniciar_jogo, jogos::{self, carrega_jogos, carregar_jogo, entrar_jogo, passar_turno}, personagens::lista_personagens, AppState, Jogo};
 use crate::core::jogos::usa_carta;
 
 async fn printa_jogos(state: &Arc<AppState>){
@@ -82,6 +82,7 @@ pub fn cria_rotas() -> Router<>{
         .route("/entrar_jogo", post(entrar_jogo))
         .route("/listar_handler", get(listar_handler))
         .route("/carregar_jogo", post(carregar_jogo))
+        .route("/passar_turno", post(passar_turno))
 
         .layer(Extension(Arc::new(app_state)))
         .layer(

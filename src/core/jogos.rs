@@ -210,3 +210,36 @@ pub async fn carregar_jogo(Extension(state): Extension<Arc<AppState>>, input: Js
     let jogo = jogos.iter_mut().find(|jogo| jogo.id == input.idjogo).unwrap();
     return Ok((StatusCode::OK, Json(jogo.to_owned())))
 }
+
+pub async fn atualiza_turno(){
+
+}
+
+pub async fn passar_turno(Extension(state): Extension<Arc<AppState>>, input: Json<EntrarJogo>)
+    -> Result<(StatusCode, Json<Jogo>), StatusCode>{
+    {
+        let id = input.idjogo;
+        let jogo_existe = verifica_jogo_existe(&state, id).await;
+
+        if !jogo_existe{
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
+    let mut jogos = carrega_jogos(&state).await;
+    let jogo = jogos.iter_mut().find(|jogo| jogo.id == input.idjogo).unwrap();
+    
+    if jogo.jogadores.iter().any(|jogador| jogador.nome == input.nome){
+        jogo.turno = input.nome.to_string();
+        {
+            if let Some(jogo_mut) = state.jogos.lock().await.iter_mut().find(|j| j.id == input.idjogo) {
+                *jogo_mut = jogo.to_owned();
+            }
+        }
+    }
+
+    let mut jogos = carrega_jogos(&state).await;
+    let jogo = jogos.iter_mut().find(|jogo| jogo.id == input.idjogo).unwrap();
+    
+    return Ok((StatusCode::OK, Json(jogo.to_owned())))
+
+}
