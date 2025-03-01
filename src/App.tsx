@@ -306,6 +306,7 @@ function App() {
       setJogo(jogoCarregadoVerificacao);
       setPlayers(jogoCarregadoVerificacao.jogadores);
       setTurno(jogoCarregadoVerificacao.turno);
+      setLogs(jogoCarregadoVerificacao.logs);
       return;
     }
 
@@ -320,6 +321,7 @@ function App() {
     setJogo(jogoCarregado);
     setPlayers(jogoCarregado.jogadores);
     setTurno(jogoCarregado.turno);
+    setLogs(jogoCarregado.logs);
   };
 
 
