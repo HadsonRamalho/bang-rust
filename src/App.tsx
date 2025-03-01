@@ -90,7 +90,7 @@ function App() {
     setPlayers(res.jogadores);
     console.log("idjogo: ", res.id);
     setJogo(res);
-    const ws = new WebSocket('ws://g6v9psc0-3069.brs.devtunnels.ms/listar_handler');
+    const ws = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/listar_handler');
 
     ws.onopen = () => {
       console.log('Conectado ao WebSocket de Listagem do LoadGame');
@@ -104,7 +104,6 @@ function App() {
 
     ws.onerror = (error) => {
       console.error('Erro no WebSocket do LoadGame:', error);
-      alert("erro no websocket do loadgame");
     };
 
     ws.onclose = () => {
@@ -196,7 +195,7 @@ function App() {
 
 
   const conectarJogo = () => {
-    const ws = new WebSocket('ws://g6v9psc0-3069.brs.devtunnels.ms/ws');
+    const ws = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/ws');
 
     ws.onopen = () => {
       console.log('Conectado ao WebSocket');
@@ -219,25 +218,51 @@ function App() {
   }
 
   const [idsJogos, setIdsJogos] = useState<string>();
+  const myws = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const ws = new WebSocket("ws://127.0.0.1:3069/listar_handler");
-    ws.onopen = () => {
-      console.log("Conectado ao WebSocket de Listagem");
-      ws.send("nova sessão iniciada");
+    const connect = () => {
+      myws.current = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/listar_handler');
+
+      myws.current.onopen = () => {
+        console.log('Conectado ao WebSocket de Listagem');
+        myws.current?.send('nova sessão iniciada');
+        
+        // Enviar mensagens de keep-alive periodicamente
+        const keepAliveInterval = setInterval(() => {
+          if (myws.current?.readyState === WebSocket.OPEN) {
+            myws.current.send('keep-alive');
+          }
+        }, 30000); // Envia a cada 30 segundos
+
+        return () => clearInterval(keepAliveInterval);
+      };
+
+      myws.current.onmessage = (event) => {
+        const newMessage = event.data;
+        setIdsJogos(newMessage);
+      };
+
+      myws.current.onerror = (error) => {
+        console.error('Erro no WebSocket:', error);
+      };
+
+      myws.current.onclose = () => {
+        console.log('Desconectado do WebSocket de Listagem');
+        
+        // Tentar reconectar após 3 segundos
+        setTimeout(() => {
+          console.log('Tentando reconectar ao WebSocket...');
+          connect();
+        }, 3000);
+      };
     };
-    ws.onmessage = (event) => {
-      const newMessage = event.data;
-      setIdsJogos(newMessage);
-    };
-    ws.onerror = (error) => {
-      console.error("Erro no WebSocket:", error);
-    };
-    ws.onclose = () => {
-      console.log("Desconectado do WebSocket de Listagem");
-    };
+
+    connect();
+
+    // Fechar o WebSocket ao desmontar o componente
     return () => {
-      ws.close();
+      myws.current?.close();
     };
   }, []);
 
