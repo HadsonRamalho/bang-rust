@@ -5,13 +5,13 @@ use serde::{Deserialize, Serialize};
 use super::{personagens::Personagem, Jogador};
 
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct InfoCarta{
     pub nome: String,
     pub descricao: String
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Carta{
     Bang(InfoCarta),
     Esquiva(InfoCarta),

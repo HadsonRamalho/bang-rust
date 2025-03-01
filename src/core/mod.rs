@@ -1,15 +1,18 @@
-use axum::Json;
+use std::sync::{Arc};
+
+use axum::{Extension, Json};
 use cartas::{lista_cartas, Carta};
 use personagens::{lista_personagens, Personagem};
 use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 
 pub mod personagens;
 pub mod cartas;
 pub mod jogos;
 
-#[derive( Serialize, Deserialize)]
+#[derive( Serialize, Deserialize, Clone)]
 pub struct Jogador{
     pub nome: String,
     pub funcao: Funcao,
@@ -33,16 +36,23 @@ pub struct Funcao{
     pub tipofuncao: TipoFuncao,
 }
 
-#[derive( Serialize, Deserialize)]
+#[derive( Serialize, Deserialize, Clone)]
 pub struct Jogo{
     pub jogadores: Vec<Jogador>,
-    pub id: u32
+    pub id: u32,
+    pub host: String
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct NomesJogadores{
     nomes: Vec<String>
 }
+
+#[derive(Clone)]
+pub struct AppState {
+    pub jogos: Arc<Mutex<Vec<Jogo>>>
+}
+
 
 pub fn escolher_cargo(role_index: usize, has_xeriff: bool, has_vice: bool)
     -> Funcao{
@@ -105,7 +115,7 @@ pub async fn criar_baralho(limite_cartas: usize)
 }
 
 #[axum::debug_handler]
-pub async fn iniciar_jogo(input: Json<NomesJogadores>) -> Json<Jogo>{
+pub async fn iniciar_jogo(Extension(state): Extension<Arc<AppState>>, input: Json<NomesJogadores>) -> Json<Jogo>{
     let nomes = input.nomes.clone();
     let num_players = nomes.len();
 
@@ -113,7 +123,8 @@ pub async fn iniciar_jogo(input: Json<NomesJogadores>) -> Json<Jogo>{
         println!("Número de jogadores inválido. O jogo deve ter entre 4 e 8 jogadores.");
         return Json(Jogo{
             jogadores: Vec::new(),
-            id: 0 as u32
+            id: 0 as u32,
+            host: "".to_string()
         });
     }
 
@@ -216,12 +227,28 @@ pub async fn iniciar_jogo(input: Json<NomesJogadores>) -> Json<Jogo>{
     }
 
     let mut rng = StdRng::from_os_rng();
-    let id: u32 = rng.random_range(1111..9999);
+    let id: u32 = rng.random_range(11111..99999);
 
     let game = Jogo{
-        jogadores: players,
-        id
+        id: id.clone(),
+        host: players[0].nome.clone(),
+        jogadores: players.clone(),
     };
 
-    Json(game)
+    let game2 = Jogo{
+        id,
+        host: players[0].nome.clone(),
+        jogadores: players,
+    };
+
+    {
+        let mut jogos = state.jogos.lock().await;
+        jogos.push(game);
+
+        for jogo in jogos.iter(){
+            println!("Jogo rodando: {}", jogo.id);
+        }
+    }
+
+    Json(game2)
 }

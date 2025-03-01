@@ -158,6 +158,72 @@ function App() {
     replacement: { _: /\d/ },
   });
 
+  const [messages, setMessages] = useState<string[]>([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [socket, setSocket] = useState<WebSocket | null>(null);
+
+  const conectarJogo = () => {
+    const ws = new WebSocket('ws://127.0.0.1:3069/ws');
+
+    ws.onopen = () => {
+      console.log('Conectado ao WebSocket');
+      setSocket(ws);
+    };
+
+    ws.onmessage = (event) => {
+      const newMessage = event.data;
+      setMessages((prevMessages) => [...prevMessages, newMessage]);
+    };
+
+    ws.onclose = () => {
+      console.log('Desconectado do WebSocket');
+      setSocket(null);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }
+
+  const [idsJogos, setIdsJogos] = useState<string>();
+
+  const listarJogos = () => {
+    const ws = new WebSocket('ws://127.0.0.1:3069/listar_handler');
+
+    ws.onopen = () => {
+      console.log('Conectado ao WebSocket de Listagem');
+      setSocket(ws);
+    };
+
+    ws.onmessage = (event) => {
+      const newMessage = event.data;
+      console.log(newMessage);
+      setIdsJogos(newMessage);
+    };
+
+    ws.onclose = () => {
+      console.log('Desconectado do WebSocket de Listagem');
+      setSocket(null);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }
+
+  useEffect(() => {
+    conectarJogo();
+    listarJogos();
+  }, []);
+
+  const sendMessage = () => {
+    if (socket) {
+      socket.send(inputMessage);
+      setInputMessage('hello');
+      console.log("tentou enviar");
+    }
+  };
+  
   return (
     <div className="w-full">
       <Tabs defaultValue="Jogadores" className="w-full">
@@ -176,6 +242,20 @@ function App() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="Jogadores">
+          <Card className="mb-2 border-[hsl(var(--primary))]">
+            <CardHeader>
+              Salas disponíveis
+            </CardHeader>
+            <CardContent>
+            {idsJogos ? (
+              idsJogos.split(';').map((numero) => (
+                <p className="border-[2px] border-[hsl(var(--primary))] mb-2" key={numero.trim()}>{numero.trim()}</p>
+              ))
+            ) : (
+              <>Nenhum jogo disponível</>
+            )}
+            </CardContent>
+          </Card>
           <Card className="border-[hsl(var(--primary))]">
             <CardHeader>
               <CardTitle>Iniciar Jogo</CardTitle>
@@ -222,6 +302,20 @@ function App() {
                   ))}
                 </div>
               )}
+			  				  <div>
+					<h1>WebSocket Chat</h1>
+					<div>
+						{messages.map((message, index) => (
+						<div key={index}>{message}</div>
+						))}
+					</div>
+					<input
+						type="text"
+						value={inputMessage}
+						onChange={(e) => setInputMessage(e.target.value)}
+					/>
+					<button type="button" onClick={sendMessage}>Enviar</button>
+					</div>
               <Sheet>
                 <SheetTrigger>
                   <Button className="bg-[hsl(var(--primary))] hover:cursor-pointer">
@@ -338,6 +432,7 @@ function App() {
                           </span>
                         ))}
                       </div>
+					  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                       {player.cartas.map((carta, index) => {
                         const [tipo, info] = Object.entries(carta)[0];
                         return (
@@ -385,6 +480,7 @@ function App() {
                           </Card>
                         );
                       })}
+					  </div>
                       {turno === player.nome && (
                         <Button
                           onClick={async () => {
