@@ -1,17 +1,20 @@
-use axum::Json;
+use std::sync::Arc;
+
+use axum::{Extension, Json};
+use hyper::StatusCode;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 
-use super::{personagens::Personagem, Jogador};
+use super::{jogos::{atualiza_jogo, carrega_jogos, verifica_jogo_existe}, personagens::Personagem, AppState, Jogador, Jogo};
 
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct InfoCarta{
     pub nome: String,
     pub descricao: String
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum Carta{
     Bang(InfoCarta),
     Esquiva(InfoCarta),
@@ -24,6 +27,12 @@ pub struct LogCarta{
     pub nome_carta: String,
     pub nome_jogador: String,
     pub descricao: String
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct JogadorJogo{
+    jogador: Jogador,
+    idjogo: u32
 }
 
 pub async fn lista_cartas()
@@ -57,14 +66,17 @@ pub async fn lista_cartas()
     Json(cartas)
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct Qtd{
-    qtd: i32
-}
-
-pub async fn compra_cartas(input: Json<Qtd>)
-    -> Json<Vec<Carta>>{
-    let limite = input.0.qtd;
+pub async fn compra_cartas(Extension(state): Extension<Arc<AppState>>, input: Json<JogadorJogo>)
+    -> Result<(StatusCode, Json<Vec<Carta>>), StatusCode>{
+    
+    if !verifica_jogo_existe(&state, input.idjogo).await{
+        return Err(StatusCode::INTERNAL_SERVER_ERROR)
+    }
+    
+    let mut jogos = carrega_jogos(&state).await;
+    let jogo = jogos.iter_mut().find(|jogo| jogo.id == input.idjogo).unwrap();
+    
+    let limite = input.jogador.personagem.atributos.limitecompra;
 
     let limite_compra = limite;
     
@@ -82,5 +94,62 @@ pub async fn compra_cartas(input: Json<Qtd>)
         cartas.push(cartasfinal[index as usize].clone());
     }
 
-    Json(cartas)
+    jogo.jogadores.iter_mut().filter(|p| p.nome == input.jogador.nome).for_each(|p| p.cartas.extend(cartas.clone()));
+
+    jogo.logs.push(LogCarta{
+        nome_carta: "Compra".to_string(),
+        nome_jogador: input.jogador.nome.to_string(),
+        descricao: format!("{} comprou {} cartas.", input.jogador.nome, cartas.len())
+    });    
+
+    {
+        if let Some(jogo_mut) = state.jogos.lock().await.iter_mut().find(|j| j.id == input.idjogo) {
+            *jogo_mut = jogo.to_owned();
+        }
+    }
+
+    return Ok((StatusCode::OK, Json(cartas)))
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct DescartaCarta{
+    pub idjogo: u32,
+    pub jogador: Jogador,
+    pub carta: Carta
+}
+
+pub async fn descartar_carta(Extension(state): Extension<Arc<AppState>>,  input: Json<DescartaCarta>)
+    -> Result<(StatusCode, Json<String>), StatusCode>{
+    if !verifica_jogo_existe(&state, input.idjogo).await{
+        return Err(StatusCode::INTERNAL_SERVER_ERROR)
+    }
+
+    let mut jogos = carrega_jogos(&state).await;
+    let jogo = jogos.iter_mut().find(|jogo| jogo.id == input.idjogo).unwrap();
+
+    let carta_descartada = input.carta.clone();
+
+    let nome_carta = match carta_descartada{
+        Carta::Bang(_) => "Bang",
+        Carta::Esquiva(_) => "Esquiva",
+        Carta::Cerveja(_) => "Cerveja",
+        Carta::Saloon(_) => "Saloon"
+    };
+
+    if let Some(jogador) = jogo.jogadores.iter_mut().find(|p| p.nome == input.jogador.nome) {
+        if let Some(pos) = jogador.cartas.iter().position(|c| c == &input.carta) {
+            jogador.cartas.remove(pos);
+        }
+    }
+
+    jogo.logs.push(LogCarta{
+        nome_carta: "Descarte".to_string(),
+        nome_jogador: input.jogador.nome.to_string(),
+        descricao: format!("{} descartou a carta {}.", input.jogador.nome, nome_carta)
+    });
+    
+
+    atualiza_jogo(&state, jogo.to_owned()).await;
+
+    return Ok((StatusCode::OK, Json(nome_carta.to_string())))
 }

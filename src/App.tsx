@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { carregaJogo, compraCartas, entraJogo, iniciaJogo, listaPersonagens, passaTurno, usaCarta } from "./services/game/game";
+import { carregaJogo, compraCartas, descartaCarta, entraJogo, iniciaJogo, listaPersonagens, passaTurno, usaCarta } from "./services/game/game";
 import type { Personagem } from "./interfaces/character/character";
 import { Avatar } from "./components/ui/avatar";
 import { CardSvgIcon } from "./components/card-svg-icon";
@@ -92,7 +92,9 @@ function App() {
     setJogo(res);
     setTurno(res.turno);
     setLogs(logs);
-    const ws = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/listar_handler');
+    setidjogo(res.id);
+    setAtualizaEstadoId(res.id);
+    const ws = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/listar_handler');
 
     ws.onopen = () => {
       console.log('Conectado ao WebSocket de Listagem do LoadGame');
@@ -132,55 +134,61 @@ function App() {
   const usarCarta = async (carta: Carta, jogador: Jogador, jogo: Jogo) => {
     console.log(carta);
     const res = await usaCarta(carta, jogador, jogo);
-    if (res.jogador.nome) {
-      const [tipo, descricao] = Object.entries(res.carta)[0];
-      if (tipo === "Saloon") {
-        players.map((player) => {
-          if (player.personagem.atributos.vida_atual < player.personagem.atributos.vida_maxima) {
-            const novaVida = Math.min(player.personagem.atributos.vida_atual + 1, player.personagem.atributos.vida_maxima);
-            player.personagem.atributos.vida_atual = novaVida;
-            console.log(`${player.nome} foi curado pelo Saloon de ${jogador.nome}`);
-          }
-        })
-          ;
-      }
-      const log: LogCarta = {
-        nome_carta: descricao.nome,
-        nome_jogador: jogador.nome,
-        descricao: descricao.descricao,
-      };
-      setLogs((prevLogs) => [...prevLogs, log]);
-      toast(`${res.jogador.nome} usou ${tipo}!`, {
-        style: {
-          backgroundColor: "hsl(var(--orange-1))",
-        },
+    if (!res.jogador.nome) {
+      return;
+    }
+    const [tipo, descricao] = Object.entries(res.carta)[0];
+    if (tipo === "Saloon") {
+      players.map((player) => {
+        if (player.personagem.atributos.vida_atual < player.personagem.atributos.vida_maxima) {
+          const novaVida = Math.min(player.personagem.atributos.vida_atual + 1, player.personagem.atributos.vida_maxima);
+          player.personagem.atributos.vida_atual = novaVida;
+          console.log(`${player.nome} foi curado pelo Saloon de ${jogador.nome}`);
+        }
       });
     }
+    const jogoAtualizado = await carregaJogo({nome: jogador.nome, idjogo: jogo.id});;
+    setJogo(jogoAtualizado);
+    setLogs(jogoAtualizado.logs);
+    setPlayers(jogoAtualizado.jogadores);
+    toast(`${res.jogador.nome} usou ${tipo}!`, {
+      style: {
+        backgroundColor: "hsl(var(--orange-1))",
+      },
+    });
   };
 
   const comprarCartas = async (jogador: Jogador) => {
     console.log("jogador: ", jogador);
     if (jogador.personagem.atributos.vida_atual < jogador.personagem.atributos.limitecompra) {
-      const cartas = await compraCartas(jogador.personagem.atributos.vida_atual);
+      const cartas = await compraCartas(jogador, Number(idjogo));
       console.log("Cartas compradas: ", cartas);
       return cartas;
     }
-    const cartas = await compraCartas(jogador.personagem.atributos.limitecompra);
-    console.log("Cartas compradas: ", cartas);
+    const cartas = await compraCartas(jogador, Number(idjogo));
+
+    const jogoAtualizado = await carregaJogo({nome: jogador.nome, idjogo: Number(idjogo)});
+    setJogo(jogoAtualizado);
+    console.log("jogo atualizado: ", jogoAtualizado);
+    setLogs(jogoAtualizado.logs);
+    setPlayers(jogoAtualizado.jogadores);
+    
     return cartas
   }
 
-  const descartarCarta = (carta: Carta, index: number, nomePlayer: string, nomeCarta: string) => {
-    toast(`${nomePlayer} descartou ${nomeCarta}`);
-    setPlayers(prevPlayers => {
-      const updatedPlayers = [...prevPlayers];
-      updatedPlayers[index] = {
-        ...updatedPlayers[index],
-        cartas: updatedPlayers[index].cartas.filter(c => c !== carta)
-      };
-      return updatedPlayers;
-    });
-  };
+  const descartarCarta = async (jogador: Jogador, carta: Carta) => {
+    if (!idjogo){
+      return;
+    }
+    const cartaDescartada = await descartaCarta(jogador, idjogo, carta);
+    toast(`${jogador.nome} descartou ${cartaDescartada}`);
+    const jogoAtualizado = await carregaJogo({nome: jogador.nome, idjogo: idjogo});
+    setJogo(jogoAtualizado);
+    setPlayers(jogoAtualizado.jogadores);
+    console.log("Jogo após descartar: ", jogoAtualizado);
+    setLogs(jogoAtualizado.logs);
+    setAtualizaEstadoId(idjogo);
+   };
 
   const passarTurno = async (nome: string) => {
     console.log(idjogo);
@@ -191,7 +199,11 @@ function App() {
         idjogo: idjogo
       });
       setJogo(jogoTurno);
+      setidjogo(jogoTurno.id);
+      setLogs(jogoTurno.logs);
+      setPlayers(jogoTurno.jogadores);
       setTurno(jogoTurno.turno);
+
       console.log("Jogo setado: ", jogoTurno);
     }
   }
@@ -212,7 +224,7 @@ function App() {
 
 
   const conectarJogo = () => {
-    const ws = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/ws');
+    const ws = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/ws');
 
     ws.onopen = () => {
       console.log('Conectado ao WebSocket');
@@ -234,12 +246,66 @@ function App() {
     };
   }
 
+  const [atualizaEstadoId, setAtualizaEstadoId] = useState<number>();
+
+  useEffect(() => {
+    const connect = () => {
+      myws.current = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/atualizar_estado');
+
+      myws.current.onopen = () => {
+        console.log('Conectado ao WebSocket de Estado');
+        myws.current?.send(idjogo?.toString() || '0');
+
+        // Enviar mensagens de keep-alive periodicamente
+        const keepAliveInterval = setInterval(() => {
+          if (myws.current?.readyState === WebSocket.OPEN) {
+            myws.current.send('0');
+          }
+        }, 30000); // Envia a cada 30 segundos
+
+        return () => clearInterval(keepAliveInterval);
+      };
+
+      myws.current.onmessage = async (event) => {
+        const newMessage = event.data;
+        const jogo = await carregaJogo({nome: nome, idjogo: Number(newMessage)});
+        setJogo(jogo);
+        setPlayers(jogo.jogadores);
+        setLogs(jogo.logs);
+        setTurno(jogo.turno);
+        toast("Estado atualizado");
+        setAtualizaEstadoId(jogo.id);
+      };
+
+      myws.current.onerror = (error) => {
+        console.error('Erro no WebSocket de Estado:', error);
+      };
+
+      myws.current.onclose = () => {
+        console.log('Desconectado do WebSocket de Estado');
+
+        // Tentar reconectar após 3 segundos
+        setTimeout(() => {
+          console.log('Tentando reconectar ao WebSocket de Estado...');
+          connect();
+        }, 3000);
+      };
+    };
+
+    connect();
+
+    // Fechar o WebSocket ao desmontar o componente
+    return () => {
+      myws.current?.close();
+    };
+  }, [atualizaEstadoId]);
+
   const [idsJogos, setIdsJogos] = useState<string>();
   const myws = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     const connect = () => {
-      myws.current = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/listar_handler');
+      myws.current = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/listar_handler');
 
       myws.current.onopen = () => {
         console.log('Conectado ao WebSocket de Listagem');
@@ -304,9 +370,12 @@ function App() {
     if (jogadorExistente) {
       console.log("Jogador já está na partida");
       setJogo(jogoCarregadoVerificacao);
+      setidjogo(jogoCarregadoVerificacao.id);
       setPlayers(jogoCarregadoVerificacao.jogadores);
       setTurno(jogoCarregadoVerificacao.turno);
       setLogs(jogoCarregadoVerificacao.logs);
+      setAtualizaEstadoId(jogoCarregadoVerificacao.id);
+
       return;
     }
 
@@ -320,9 +389,11 @@ function App() {
 
     setJogo(jogoCarregado);
     setPlayers(jogoCarregado.jogadores);
+    setidjogo(jogoCarregado.id);
     setTurno(jogoCarregado.turno);
     setLogs(jogoCarregado.logs);
-  };
+    setAtualizaEstadoId(jogoCarregado.id); 
+   };
 
 
   const sendMessage = () => {
@@ -478,9 +549,9 @@ function App() {
               </div>
               <Sheet>
                 <SheetTrigger>
-                  <Button className="bg-[hsl(var(--primary))] hover:cursor-pointer">
+                  <div className="bg-[hsl(var(--primary))] hover:cursor-pointer">
                     Ver histórico do jogo
-                  </Button>
+                  </div>
                 </SheetTrigger>
                 <SheetContent className="bg-gray-200">
                   <SheetHeader>
@@ -647,7 +718,7 @@ function App() {
                                 {(turno === player.nome && player.nome === nome)
                                 && (<Button
                                   className="bg-[hsl(var(--primary))] hover:cursor-pointer"
-                                  onClick={() => descartarCarta(carta, indexPlayer, player.nome, tipo)}
+                                  onClick={async () => await descartarCarta(player, carta)}
                                 >
                                   Descartar
                                 </Button>)}
@@ -678,39 +749,21 @@ function App() {
 
                               const novasCartas = await comprarCartas(players[indexPlayer + 1]);
                               players[indexPlayer + 1].cartas = players[indexPlayer + 1].cartas.concat(novasCartas);
-                              const logCompra: LogCarta = {
-                                nome_carta: "Compra",
-                                descricao: `${players[indexPlayer + 1].nome} comprou ${novasCartas.length} cartas.`,
-                                nome_jogador: `${players[indexPlayer + 1].nome}`
-                              };
                               toast(
                                 `${players[indexPlayer + 1].nome} comprou ${novasCartas.length} cartas.`,
                               );
-                              setLogs((prevLogs) => [...prevLogs, logCompra]);
                             }
                             if (!players[indexPlayer + 1]) {
                               await passarTurno(players[0].nome);
 
-                              const log: LogCarta = {
-                                nome_carta: "Fim de Turno",
-                                descricao: `${player.nome} passou a vez para ${players[0].nome}.`,
-                                nome_jogador: `${player.nome}`
-                              }
-                              setLogs((prevLogs) => [...prevLogs, log]);
                               toast(
                                 `${player.nome} passou a vez para ${players[0].nome}.`,
                               );
                               const novasCartas = await comprarCartas(players[0]);
                               players[0].cartas = players[0].cartas.concat(novasCartas);
-                              const logCompra: LogCarta = {
-                                nome_carta: "Compra",
-                                descricao: `${players[0].nome} comprou ${novasCartas.length} cartas.`,
-                                nome_jogador: `${players[0].nome}`
-                              };
                               toast(
                                 `${players[0].nome} comprou ${novasCartas.length} cartas.`,
                               );
-                              setLogs((prevLogs) => [...prevLogs, logCompra]);                              
                             }
                           }}
                           className="bg-[hsl(var(--primary))] hover:cursor-pointer"

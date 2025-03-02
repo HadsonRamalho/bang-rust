@@ -50,10 +50,11 @@ export async function usaCarta(carta: Carta, jogador: Jogador, jogo: Jogo): Prom
   }
 }
 
-export async function compraCartas(qtd: number): Promise<Carta[]> {
+export async function compraCartas(jogador: Jogador, idjogo: number): Promise<Carta[]> {
   try {
     const res = await client.post<Carta[]>("/compra_cartas", {
-      qtd
+      jogador: jogador,
+      idjogo: idjogo
     });
     const data: Carta[] = res.data;
     return data;
@@ -68,7 +69,7 @@ export async function compraCartas(qtd: number): Promise<Carta[]> {
 
 export async function carregaJogo(entrarJogo: EntrarJogo): Promise<Jogo> {
   try {
-    const res = await client.post<Jogo>('https://g6v9psc0-3069.brs.devtunnels.ms/carregar_jogo', {
+    const res = await client.post<Jogo>('https://j1p43lfm-3069.brs.devtunnels.ms/carregar_jogo', {
       nome: entrarJogo.nome,
       idjogo: entrarJogo.idjogo,
     });
@@ -85,7 +86,7 @@ export async function carregaJogo(entrarJogo: EntrarJogo): Promise<Jogo> {
 
 export async function entraJogo(entrarJogo: EntrarJogo): Promise<Jogo> {
   try {
-    const res = await client.post<Jogo>('https://g6v9psc0-3069.brs.devtunnels.ms/entrar_jogo', {
+    const res = await client.post<Jogo>('https://j1p43lfm-3069.brs.devtunnels.ms/entrar_jogo', {
       nome: entrarJogo.nome,
       idjogo: entrarJogo.idjogo,
     });
@@ -102,7 +103,7 @@ export async function entraJogo(entrarJogo: EntrarJogo): Promise<Jogo> {
 
 export async function passaTurno(entrarJogo: EntrarJogo): Promise<Jogo> {
   try {
-    const res = await client.post<Jogo>('https://g6v9psc0-3069.brs.devtunnels.ms/passar_turno', {
+    const res = await client.post<Jogo>('https://j1p43lfm-3069.brs.devtunnels.ms/passar_turno', {
       nome: entrarJogo.nome,
       idjogo: entrarJogo.idjogo,
     });
@@ -113,6 +114,24 @@ export async function passaTurno(entrarJogo: EntrarJogo): Promise<Jogo> {
     console.error(error.response?.status, error.message);
     throw new Error(
       `Falha ao passar o turno: Código [${error.response?.status}]`
+    );
+  }
+}
+
+export async function descartaCarta(jogador: Jogador, idjogo: number, carta: Carta): Promise<string> {
+  try {
+    const res = await client.post<string>("/descartar_carta", {
+      jogador: jogador,
+      idjogo: idjogo,
+      carta: carta
+    });
+    const data: string = res.data;
+    return data;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    console.error(error.response?.status, error.message);
+    throw new Error(
+      `Falha ao descartar carta: Código [${error.response?.status}]`
     );
   }
 }

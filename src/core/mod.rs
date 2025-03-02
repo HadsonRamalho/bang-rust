@@ -237,14 +237,14 @@ pub async fn iniciar_jogo(Extension(state): Extension<Arc<AppState>>, input: Jso
         id: id.clone(),
         host: players[0].nome.clone(),
         jogadores: players.clone(),
-        turno: players[0].nome.clone(),
+        turno: players.iter().find(|j| j.funcao.tipofuncao == TipoFuncao::Xerife).unwrap().nome.clone(),
         logs: vec![]
     };
 
     let game2 = Jogo{
         id,
         host: players[0].nome.clone(),
-        turno: players[0].nome.clone(),
+        turno: players.iter().find(|j| j.funcao.tipofuncao == TipoFuncao::Xerife).unwrap().nome.clone(),
         jogadores: players,
         logs: vec![]
     };

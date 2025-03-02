@@ -20,33 +20,60 @@ pub struct CartaJogadorJogo{
     jogador: Jogador
 }
 
-pub async fn usa_carta(input: Json<CartaJogadorJogo>)
-    -> Json<CartaJogadorJogo>{
+pub async fn usa_carta(Extension(state): Extension<Arc<AppState>>, input: Json<CartaJogadorJogo>)
+    -> Result<(StatusCode, Json<CartaJogadorJogo>), StatusCode>{
+
+    
+    if !verifica_jogo_existe(&state, input.jogo.id).await{
+        return Err(StatusCode::INTERNAL_SERVER_ERROR)
+    }
+    
+    let mut jogos = carrega_jogos(&state).await;
+    let jogo = jogos.iter_mut().find(|jogo| jogo.id == input.jogo.id).unwrap();
+    
     let carta = input.0.carta;
-    let jogo = input.0.jogo;
     let jogador = input.0.jogador;
 
     println!("Jogador: {}", jogador.nome);
+    let mut nome_carta = "";
     match carta{
         Carta::Cerveja(_) => {
+            nome_carta = "Cerveja";
             println!("Cerveja");
         },
         Carta::Saloon(_) => {
+            nome_carta = "Saloon";
             println!("Saloon");
         }
         Carta::Bang(_) => {
+            nome_carta = "Bang";
             println!("Bang!");
         },
         Carta::Esquiva(_) => {
+            nome_carta = "Esquiva";
             println!("Esquiva");
         }
     }
 
-    Json(CartaJogadorJogo{
+    jogo.logs.push(LogCarta{
+        nome_carta: nome_carta.to_string(),
+        nome_jogador: jogador.nome.clone(),
+        descricao: format!("{} usou a carta {}", jogador.nome, nome_carta)
+    });
+
+    atualiza_jogo(&state, jogo.to_owned().clone()).await;
+
+    return Ok((StatusCode::OK, Json(CartaJogadorJogo{
         carta,
         jogador,
-        jogo
-    })
+        jogo: jogo.to_owned()
+    })));
+}
+
+pub async fn atualiza_jogo(state: &Arc<AppState>, jogo: Jogo){
+    if let Some(jogo_mut) = state.jogos.lock().await.iter_mut().find(|j| j.id == jogo.id) {
+        *jogo_mut = jogo;
+    }
 }
 
 #[derive(Serialize, Deserialize)]
