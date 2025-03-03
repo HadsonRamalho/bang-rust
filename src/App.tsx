@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { carregaJogo, compraCartas, curaPersonagem, descartaCarta, entraJogo, iniciaJogo, listaPersonagens, passaTurno, usaCarta } from "./services/game/game";
+import { carregaJogo, compraCartas, curaPersonagem, danoBang, descartaCarta, entraJogo, iniciaJogo, listaPersonagens, passaTurno, usaCarta } from "./services/game/game";
 import type { Personagem } from "./interfaces/character/character";
 import { Avatar } from "./components/ui/avatar";
 import { CardSvgIcon } from "./components/card-svg-icon";
@@ -70,6 +70,7 @@ function App() {
   const [idjogo, setidjogo] = useState<number>();
 
   const [isBang, setIsBang] = useState(false);
+  const [alvosBang, setAlvosBang] = useState<Jogador[]>();
 
   const [playerNames, setPlayerNames] = useState<string[]>(
     Array(qtdPlayers).fill(""),
@@ -187,6 +188,24 @@ function App() {
     if(tipo === "Bang"){
       toast("BANG");
       setIsBang(true);
+      let jogadores = [];
+      for (let i = 1; i <= jogador.personagem.atributos.visao; i++) {
+        let indexAnterior = players.findIndex((player) => player.nome === jogador.nome) - i;
+        let indexPosterior = players.findIndex((player) => player.nome === jogador.nome) + i;
+
+        if (indexAnterior < 0) {
+          indexAnterior = players.length + indexAnterior;
+        }
+        if (indexPosterior >= players.length) {
+          indexPosterior = indexPosterior - players.length;
+        }
+
+        jogadores.push(players[indexAnterior]);
+        jogadores.push(players[indexPosterior]);
+      }
+
+      console.log('Jogadores no alcance da visão: ', jogadores);
+      setAlvosBang(jogadores);
       let indexAnterior = players.findIndex((player) => player.nome === jogador.nome) - jogador.personagem.atributos.visao;
       if(indexAnterior < 0){
         indexAnterior = players.length - 1;
@@ -256,6 +275,7 @@ function App() {
         nome: nome,
         idjogo: idjogo
       });
+      // se jogador estiver morto, chamar passarTurno novamente.
       setJogo(jogoTurno);
       setidjogo(jogoTurno.id);
       setLogs(jogoTurno.logs);
@@ -438,6 +458,15 @@ function App() {
       }
     }
   };
+  
+  const causarDanoBang = async (alvo: Jogador) => {
+    if(idjogo){
+      await danoBang(alvo, idjogo);
+      toast(`${alvo.nome} sofreu dano de um Bang!`);
+      const jogoAtualizar = await carregaJogo({nome: nome, idjogo: Number(idjogo)});
+      console.log(jogoAtualizar);
+    }
+    }
 
   return (
     <div className="w-full">
@@ -459,19 +488,38 @@ function App() {
         <TabsContent value="Jogadores">
           <Card className="mb-2 border-[hsl(var(--primary))]">
           <AlertDialog open={isBang}>
-  <AlertDialogContent className="bg-[white]">
-    <AlertDialogHeader>
-      <AlertDialogTitle>Bang!</AlertDialogTitle>
-      <AlertDialogDescription>
-        Escolha um alvo para o Bang.
-      </AlertDialogDescription>
-    </AlertDialogHeader>
-    <AlertDialogFooter>
-      <AlertDialogCancel className="hover:cursor-pointer" onClick={() => {setIsBang(false)}}>Cancel</AlertDialogCancel>
-      <AlertDialogAction>Continue</AlertDialogAction>
-    </AlertDialogFooter>
-  </AlertDialogContent>
-</AlertDialog>
+          <AlertDialogContent className="bg-[hsl(var(--background))]">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Bang!</AlertDialogTitle>
+              <AlertDialogDescription>
+                Escolha um alvo para o Bang.
+                {
+                  alvosBang?.map((alvo) => (
+                    <Card className="border-[hsl(var(--primary))] m-2 flex items-center" key={alvo.nome}>
+                      <CardContent className="flex items-center">
+                        <Avatar>
+                          <img src={`${alvo.personagem.nome}.png`}></img>
+                        </Avatar>
+                        <p>Jogador: {alvo.nome}</p>
+                        <p>Personagem: {alvo.personagem.nome}</p>
+                        <p>Vida Atual: {alvo.personagem.atributos.vida_atual}</p>
+                        <Button className="bg-[hsl(var(--primary))] hover:cursor-pointer"
+                        onClick={
+                          async () => {await causarDanoBang(alvo);
+                            alvo.personagem.atributos.vida_atual -= 1;
+                          }
+                        }>Bang!</Button>
+                      </CardContent>
+                    </Card>
+                  ))
+                }
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="hover:cursor-pointer border-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]" onClick={() => {setIsBang(false)}}>Cancelar</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
             <CardHeader>
               Salas disponíveis
             </CardHeader>
@@ -654,9 +702,11 @@ function App() {
                 <Card
                   key={indexPlayer}
                   className={
-                    turno === player.nome
-                      ? "border-[hsl(var(--primary))] border-[4px] space-y-2 mb-2"
-                      : "border-[hsl(var(--primary))] space-y-1 mb-1"
+                    turno === player.nome && player.personagem.atributos.vida_atual > 0
+                    ? "border-[hsl(var(--primary))] border-[4px] space-y-2 mb-2"
+                    : player.personagem.atributos.vida_atual <= 0 
+                    ? "border-black-200 border-[2px] bg-gray-400 space-y-1 mb-1"
+                    : "border-[hsl(var(--primary))] space-y-1 mb-1"
                   }
                 >
                   <p>
@@ -703,7 +753,7 @@ function App() {
                       </strong>
                       <div className="flex space-x-1 mb-4">
                         {Array.from({
-                          length: player.personagem.atributos.vida_maxima,
+                          length: player.personagem.atributos.vida_atual,
                         }).map((_, index) => (
                           <span key={index}>
                             <Bullet color="hsl(var(--primary))" size={35} />
@@ -728,7 +778,7 @@ function App() {
                                 </p>
                               </CardHeader>
                               <CardFooter className="flex flex-col items-center gap-2">
-                                {turno === player.nome && player.nome === nome && tipo !== "Esquiva" && (
+                                {turno === player.nome && player.nome === nome && tipo !== "Esquiva" && turno === player.nome && player.personagem.atributos.vida_atual > 0 && (
                                   <Button
                                     onClick={async () => {
                                       if (jogo) {
@@ -751,7 +801,7 @@ function App() {
                                   </Button>
                                 )}
                                 <DetalhesCarta carta={carta} />
-                                {(turno === player.nome && player.nome === nome)
+                                {(turno === player.nome && player.nome === nome && turno === player.nome && player.personagem.atributos.vida_atual > 0)
                                 && (<Button
                                   className="bg-[hsl(var(--primary))] hover:cursor-pointer"
                                   onClick={async () => await descartarCarta(player, carta)}
@@ -767,7 +817,7 @@ function App() {
                         )}
                         
                         
-                      {turno === player.nome && (
+                      {(turno === player.nome && turno === player.nome && player.personagem.atributos.vida_atual > 0) && (
                         <Button
                           onClick={async () => {
                             if (players[indexPlayer + 1]) {

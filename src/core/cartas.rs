@@ -162,9 +162,10 @@ pub async fn curar_personagem(Extension(state): Extension<Arc<AppState>>, input:
     let mut jogos = carrega_jogos(&state).await;
     let jogo = jogos.iter_mut().find(|jogo| jogo.id == input.idjogo).unwrap();
 
-    let jogador = jogo.jogadores.iter_mut().find(|p| p.nome == input.jogador.nome).unwrap();
-    if jogador.personagem.atributos.vida_atual < jogador.personagem.atributos.vida_maxima{
-        jogador.personagem.atributos.vida_atual += 1;
+    if let Some(jogador) = jogo.jogadores.iter_mut().find(|p| p.nome == input.jogador.nome) {
+        if jogador.personagem.atributos.vida_atual < jogador.personagem.atributos.vida_maxima {
+            jogador.personagem.atributos.vida_atual += 1;
+        }
     }
 
     let nome_carta = match input.carta{
@@ -179,6 +180,30 @@ pub async fn curar_personagem(Extension(state): Extension<Arc<AppState>>, input:
         nome_jogador: input.jogador.nome.to_string(),
         descricao: format!("{} curou 1 ponto de vida.", input.jogador.nome)
     });
+
+    atualiza_jogo(&state, jogo.to_owned()).await;
+
+    return Ok((StatusCode::OK, Json(jogo.to_owned())))
+}
+
+pub async fn dano_bang(Extension(state): Extension<Arc<AppState>>, alvo: Json<JogadorJogo>)
+    -> Result<(StatusCode, Json<Jogo>), StatusCode>{
+    if !verifica_jogo_existe(&state, alvo.idjogo).await{
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+    let mut jogos = carrega_jogos(&state).await;
+    let jogo = jogos.iter_mut().find(|jogo| jogo.id == alvo.idjogo).unwrap();
+
+    let jogador = jogo.jogadores.iter_mut().find(|p| p.nome == alvo.jogador.nome).unwrap();
+    jogador.personagem.atributos.vida_atual -= 1;
+
+    let log = LogCarta{
+        nome_carta: "Bang".to_string(),
+        nome_jogador: alvo.jogador.nome.clone(),
+        descricao: format!("{} tomou 1 de dano um Bang!", alvo.jogador.nome),
+    };
+
+    jogo.logs.push(log);
 
     atualiza_jogo(&state, jogo.to_owned()).await;
 

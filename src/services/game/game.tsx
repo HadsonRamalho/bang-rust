@@ -153,3 +153,20 @@ export async function curaPersonagem(jogador: Jogador, idjogo: number, carta: Ca
     );
   }
 }
+
+export async function danoBang(jogador: Jogador, idjogo: number): Promise<Jogo> {
+  try {
+    const res = await client.post<Jogo>("/dano_bang", {
+      jogador: jogador,
+      idjogo: idjogo
+    });
+    const data: Jogo = res.data;
+    return data;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    console.error(error.response?.status, error.message);
+    throw new Error(
+      `Falha ao causar dano do bang: Código [${error.response?.status}]`
+    );
+  }
+}
