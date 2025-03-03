@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { carregaJogo, compraCartas, descartaCarta, entraJogo, iniciaJogo, listaPersonagens, passaTurno, usaCarta } from "./services/game/game";
+import { carregaJogo, compraCartas, curaPersonagem, descartaCarta, entraJogo, iniciaJogo, listaPersonagens, passaTurno, usaCarta } from "./services/game/game";
 import type { Personagem } from "./interfaces/character/character";
 import { Avatar } from "./components/ui/avatar";
 import { CardSvgIcon } from "./components/card-svg-icon";
@@ -41,6 +41,19 @@ import {
 } from "@/components/ui/table";
 import DetalhesCarta from "./components/detalhes-carta";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
+
 function App() {
   const [players, setPlayers] = useState<Jogador[]>([]);
   const [personagens, setPersonagens] = useState<Personagem[]>([]);
@@ -55,6 +68,8 @@ function App() {
   const [jogo, setJogo] = useState<Jogo>();
 
   const [idjogo, setidjogo] = useState<number>();
+
+  const [isBang, setIsBang] = useState(false);
 
   const [playerNames, setPlayerNames] = useState<string[]>(
     Array(qtdPlayers).fill(""),
@@ -94,6 +109,7 @@ function App() {
     setLogs(logs);
     setidjogo(res.id);
     setAtualizaEstadoId(res.id);
+    setNome(res.jogadores[0].nome);
     const ws = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/listar_handler');
 
     ws.onopen = () => {
@@ -105,6 +121,9 @@ function App() {
       const newMessage = event.data;
       setIdsJogos(newMessage);
       console.log("mensagem: ", newMessage);
+      if(jogo){
+        setAtualizaEstadoId(jogo.id);
+      }
     };
 
     ws.onerror = (error) => {
@@ -113,6 +132,9 @@ function App() {
 
     ws.onclose = () => {
       console.log('Desconectado do WebSocket de Listagem do LoadGame');
+      if(jogo){
+        setAtualizaEstadoId(jogo.id);
+      }
     };
 
     return () => {
@@ -139,18 +161,48 @@ function App() {
     }
     const [tipo, descricao] = Object.entries(res.carta)[0];
     if (tipo === "Saloon") {
-      players.map((player) => {
-        if (player.personagem.atributos.vida_atual < player.personagem.atributos.vida_maxima) {
-          const novaVida = Math.min(player.personagem.atributos.vida_atual + 1, player.personagem.atributos.vida_maxima);
-          player.personagem.atributos.vida_atual = novaVida;
-          console.log(`${player.nome} foi curado pelo Saloon de ${jogador.nome}`);
-        }
+      players.map(async (player) => {
+        const jogoCurar = await curaPersonagem(player, jogo.id, carta);
+        toast(`${player.nome} foi curado!`, {
+          duration: 3000
+        });
+        setJogo(jogoCurar);
+        setLogs(jogoCurar.logs);
+        setPlayers(jogoCurar.jogadores);
+        setTurno(jogoCurar.turno);
+        setAtualizaEstadoId(jogoCurar.id);
       });
+    }
+    if(tipo === "Cerveja"){
+      const jogoCurar = await curaPersonagem(jogador, jogo.id, carta);
+      toast(`${jogador.nome} foi curado!`, {
+        duration: 3000
+      });
+      setJogo(jogoCurar);
+      setLogs(jogoCurar.logs);
+      setPlayers(jogoCurar.jogadores);
+      setTurno(jogoCurar.turno);
+      setAtualizaEstadoId(jogoCurar.id);
+    }
+    if(tipo === "Bang"){
+      toast("BANG");
+      setIsBang(true);
+      let indexAnterior = players.findIndex((player) => player.nome === jogador.nome) - jogador.personagem.atributos.visao;
+      if(indexAnterior < 0){
+        indexAnterior = players.length - 1;
+      }
+      let indexPosterior = players.findIndex((player) => player.nome === jogador.nome) + jogador.personagem.atributos.visao;
+      if(indexPosterior >= players.length){
+        indexPosterior = 0;
+      }
+      toast(`Próximo player: ${players[indexPosterior].nome}`);
+      toast(`Player anterior: ${players[indexAnterior].nome}`);
     }
     const jogoAtualizado = await carregaJogo({nome: jogador.nome, idjogo: jogo.id});;
     setJogo(jogoAtualizado);
     setLogs(jogoAtualizado.logs);
     setPlayers(jogoAtualizado.jogadores);
+    setTurno(jogoAtualizado.turno);
     toast(`${res.jogador.nome} usou ${tipo}!`, {
       style: {
         backgroundColor: "hsl(var(--orange-1))",
@@ -172,7 +224,10 @@ function App() {
     console.log("jogo atualizado: ", jogoAtualizado);
     setLogs(jogoAtualizado.logs);
     setPlayers(jogoAtualizado.jogadores);
-    
+    if(jogo){
+      setAtualizaEstadoId(jogo.id);
+    }
+
     return cartas
   }
 
@@ -188,6 +243,9 @@ function App() {
     console.log("Jogo após descartar: ", jogoAtualizado);
     setLogs(jogoAtualizado.logs);
     setAtualizaEstadoId(idjogo);
+    if(jogo){
+      setAtualizaEstadoId(jogo.id);
+    }
    };
 
   const passarTurno = async (nome: string) => {
@@ -203,6 +261,8 @@ function App() {
       setLogs(jogoTurno.logs);
       setPlayers(jogoTurno.jogadores);
       setTurno(jogoTurno.turno);
+
+      setAtualizaEstadoId(jogoTurno.id);
 
       console.log("Jogo setado: ", jogoTurno);
     }
@@ -229,11 +289,15 @@ function App() {
     ws.onopen = () => {
       console.log('Conectado ao WebSocket');
       setSocket(ws);
+      if(jogo){
+        setAtualizaEstadoId(jogo.id);
+      }
     };
 
     ws.onmessage = (event) => {
       const newMessage = event.data;
       setMessages((prevMessages) => [...prevMessages, newMessage]);
+      toast(newMessage);
     };
 
     ws.onclose = () => {
@@ -249,55 +313,20 @@ function App() {
   const [atualizaEstadoId, setAtualizaEstadoId] = useState<number>();
 
   useEffect(() => {
-    const connect = () => {
-      myws.current = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/atualizar_estado');
+    const interval = setInterval(async () => {
+      if(!idjogo){
+        return;
+      }
+      console.log('Tentando atualizar o jogo...');
+      const jogoAtualizar = await carregaJogo({nome: nome, idjogo: Number(idjogo)});
+      setJogo(jogoAtualizar);
+      setPlayers(jogoAtualizar.jogadores);
+      setLogs(jogoAtualizar.logs);
+      setTurno(jogoAtualizar.turno);
+      setAtualizaEstadoId(jogoAtualizar.id);
+    }, 1500);
 
-      myws.current.onopen = () => {
-        console.log('Conectado ao WebSocket de Estado');
-        myws.current?.send(idjogo?.toString() || '0');
-
-        // Enviar mensagens de keep-alive periodicamente
-        const keepAliveInterval = setInterval(() => {
-          if (myws.current?.readyState === WebSocket.OPEN) {
-            myws.current.send('0');
-          }
-        }, 30000); // Envia a cada 30 segundos
-
-        return () => clearInterval(keepAliveInterval);
-      };
-
-      myws.current.onmessage = async (event) => {
-        const newMessage = event.data;
-        const jogo = await carregaJogo({nome: nome, idjogo: Number(newMessage)});
-        setJogo(jogo);
-        setPlayers(jogo.jogadores);
-        setLogs(jogo.logs);
-        setTurno(jogo.turno);
-        toast("Estado atualizado");
-        setAtualizaEstadoId(jogo.id);
-      };
-
-      myws.current.onerror = (error) => {
-        console.error('Erro no WebSocket de Estado:', error);
-      };
-
-      myws.current.onclose = () => {
-        console.log('Desconectado do WebSocket de Estado');
-
-        // Tentar reconectar após 3 segundos
-        setTimeout(() => {
-          console.log('Tentando reconectar ao WebSocket de Estado...');
-          connect();
-        }, 3000);
-      };
-    };
-
-    connect();
-
-    // Fechar o WebSocket ao desmontar o componente
-    return () => {
-      myws.current?.close();
-    };
+    return () => clearInterval(interval);
   }, [atualizaEstadoId]);
 
   const [idsJogos, setIdsJogos] = useState<string>();
@@ -317,6 +346,10 @@ function App() {
             myws.current.send('keep-alive');
           }
         }, 30000); // Envia a cada 30 segundos
+
+        if(jogo){
+          setAtualizaEstadoId(jogo.id);
+        }
 
         return () => clearInterval(keepAliveInterval);
       };
@@ -375,7 +408,6 @@ function App() {
       setTurno(jogoCarregadoVerificacao.turno);
       setLogs(jogoCarregadoVerificacao.logs);
       setAtualizaEstadoId(jogoCarregadoVerificacao.id);
-
       return;
     }
 
@@ -400,6 +432,10 @@ function App() {
     if (socket) {
       socket.send(inputMessage);
       console.log("tentou enviar");
+      setInputMessage('');
+      if(jogo){
+        setAtualizaEstadoId(jogo.id);
+      }
     }
   };
 
@@ -422,6 +458,20 @@ function App() {
         </TabsList>
         <TabsContent value="Jogadores">
           <Card className="mb-2 border-[hsl(var(--primary))]">
+          <AlertDialog open={isBang}>
+  <AlertDialogContent className="bg-[white]">
+    <AlertDialogHeader>
+      <AlertDialogTitle>Bang!</AlertDialogTitle>
+      <AlertDialogDescription>
+        Escolha um alvo para o Bang.
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel className="hover:cursor-pointer" onClick={() => {setIsBang(false)}}>Cancel</AlertDialogCancel>
+      <AlertDialogAction>Continue</AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
             <CardHeader>
               Salas disponíveis
             </CardHeader>
@@ -461,7 +511,7 @@ function App() {
                   alert("A quantidade de jogadores é inválida.");
                 }}
               />
-              <Button onClick={carregarJogo} className="bg-[hsl(var(--primary))] mt-2">Entrar</Button>
+              <Button onClick={carregarJogo} className="bg-[hsl(var(--primary))] mt-2 hover:cursor-pointer">Entrar</Button>
             </CardContent>
           </Card>
           <Card className="border-[hsl(var(--primary))]">
@@ -533,23 +583,9 @@ function App() {
                   ))}
                 </div>
               )}
-              <div>
-                <h1>WebSocket Chat</h1>
-                <div>
-                  {messages.map((message, index) => (
-                    <div key={index}>{message}</div>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                />
-                <button type="button" onClick={sendMessage}>Enviar</button>
-              </div>
               <Sheet>
                 <SheetTrigger>
-                  <div className="bg-[hsl(var(--primary))] hover:cursor-pointer">
+                  <div className="bg-[hsl(var(--primary))] hover:cursor-pointer rounded-xl p-2 ">
                     Ver histórico do jogo
                   </div>
                 </SheetTrigger>
@@ -678,7 +714,7 @@ function App() {
                       {player.nome === nome && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
 
-    {player.cartas.map((carta, index) => {
+                      {player.cartas.map((carta, index) => {
                           const [tipo, info] = Object.entries(carta)[0];
                           return (
                             <Card

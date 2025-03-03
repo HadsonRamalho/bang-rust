@@ -153,3 +153,34 @@ pub async fn descartar_carta(Extension(state): Extension<Arc<AppState>>,  input:
 
     return Ok((StatusCode::OK, Json(nome_carta.to_string())))
 }
+
+pub async fn curar_personagem(Extension(state): Extension<Arc<AppState>>, input: Json<DescartaCarta>)
+    -> Result<(StatusCode, Json<Jogo>), StatusCode>{
+    if !verifica_jogo_existe(&state, input.idjogo).await{
+        return Err(StatusCode::INTERNAL_SERVER_ERROR)
+    }
+    let mut jogos = carrega_jogos(&state).await;
+    let jogo = jogos.iter_mut().find(|jogo| jogo.id == input.idjogo).unwrap();
+
+    let jogador = jogo.jogadores.iter_mut().find(|p| p.nome == input.jogador.nome).unwrap();
+    if jogador.personagem.atributos.vida_atual < jogador.personagem.atributos.vida_maxima{
+        jogador.personagem.atributos.vida_atual += 1;
+    }
+
+    let nome_carta = match input.carta{
+        Carta::Bang(_) => "Bang",
+        Carta::Esquiva(_) => "Esquiva",
+        Carta::Cerveja(_) => "Cerveja",
+        Carta::Saloon(_) => "Saloon"
+    };
+
+    jogo.logs.push(LogCarta{
+        nome_carta: nome_carta.to_string(),
+        nome_jogador: input.jogador.nome.to_string(),
+        descricao: format!("{} curou 1 ponto de vida.", input.jogador.nome)
+    });
+
+    atualiza_jogo(&state, jogo.to_owned()).await;
+
+    return Ok((StatusCode::OK, Json(jogo.to_owned())))
+}

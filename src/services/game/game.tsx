@@ -135,3 +135,21 @@ export async function descartaCarta(jogador: Jogador, idjogo: number, carta: Car
     );
   }
 }
+
+export async function curaPersonagem(jogador: Jogador, idjogo: number, carta: Carta): Promise<Jogo> {
+  try {
+    const res = await client.post<Jogo>("/curar_personagem", {
+      jogador: jogador,
+      idjogo: idjogo,
+      carta: carta
+    });
+    const data: Jogo = res.data;
+    return data;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    console.error(error.response?.status, error.message);
+    throw new Error(
+      `Falha ao curar: Código [${error.response?.status}]`
+    );
+  }
+}
