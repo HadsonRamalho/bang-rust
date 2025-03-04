@@ -52,6 +52,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { FileClock } from "lucide-react";
 
 
 function App() {
@@ -164,9 +165,6 @@ function App() {
     if (tipo === "Saloon") {
       players.map(async (player) => {
         const jogoCurar = await curaPersonagem(player, jogo.id, carta);
-        toast(`${player.nome} foi curado!`, {
-          duration: 3000
-        });
         setJogo(jogoCurar);
         setLogs(jogoCurar.logs);
         setPlayers(jogoCurar.jogadores);
@@ -411,6 +409,7 @@ function App() {
     if (!idjogo || !nome) {
       return;
     }
+
     const obj: EntrarJogo = {
       nome: nome,
       idjogo: idjogo
@@ -421,6 +420,18 @@ function App() {
     const jogadorExistente = jogoCarregadoVerificacao.jogadores.some((jogador) => jogador.nome === nome);
 
     if (jogadorExistente) {
+      
+      if (bangws.current?.readyState === WebSocket.OPEN) {
+        console.warn("bangws detectado");
+        const myobj = {
+          jogador: jogoCarregadoVerificacao.jogadores[0],
+          alvo: jogoCarregadoVerificacao.jogadores[1],
+          idjogo: jogoCarregadoVerificacao.id,
+          carta: jogoCarregadoVerificacao.jogadores[0].cartas[0]
+        };
+        bangws.current?.send(JSON.stringify(myobj));
+        console.warn("Enviou para o bang_ws");
+      }
       console.log("Jogador já está na partida");
       setJogo(jogoCarregadoVerificacao);
       setidjogo(jogoCarregadoVerificacao.id);
@@ -428,6 +439,7 @@ function App() {
       setTurno(jogoCarregadoVerificacao.turno);
       setLogs(jogoCarregadoVerificacao.logs);
       setAtualizaEstadoId(jogoCarregadoVerificacao.id);
+      
       return;
     }
 
@@ -445,20 +457,22 @@ function App() {
     setTurno(jogoCarregado.turno);
     setLogs(jogoCarregado.logs);
     setAtualizaEstadoId(jogoCarregado.id); 
+
+    if (bangws.current?.readyState === WebSocket.OPEN) {
+      console.warn("bangws detectado");
+      const myobj = {
+        jogador: jogoCarregadoVerificacao.jogadores[0],
+        alvo: jogoCarregadoVerificacao.jogadores[1],
+        idjogo: jogoCarregadoVerificacao.id,
+        carta: jogoCarregadoVerificacao.jogadores[0].cartas[0]
+      };
+      bangws.current?.send(JSON.stringify(myobj));
+      console.warn("Enviou para o bang_ws");
+    } else{
+      console.error("BANG WS NÃO DETECTADO");
+    }
    };
 
-
-  const sendMessage = () => {
-    if (socket) {
-      socket.send(inputMessage);
-      console.log("tentou enviar");
-      setInputMessage('');
-      if(jogo){
-        setAtualizaEstadoId(jogo.id);
-      }
-    }
-  };
-  
   const causarDanoBang = async (alvo: Jogador) => {
     if(idjogo){
       await danoBang(alvo, idjogo);
@@ -468,6 +482,63 @@ function App() {
     }
     }
 
+    const bangws = useRef<WebSocket | null>(null);
+
+    useEffect(() => {
+      const connect = () => {
+        bangws.current = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/bang_ws');
+    
+        bangws.current.onopen = () => {
+          console.log('Conectado ao WebSocket de Bangs');
+          
+          // Enviar mensagens de keep-alive periodicamente
+          const keepAliveInterval = setInterval(() => {
+            if (bangws.current?.readyState === WebSocket.OPEN) {
+              bangws.current.send('keep-alive-bang');
+            }
+          }, 15000); // Envia a cada 15 segundos
+
+          if (!bangws.current){
+            return;
+          }
+    
+          // Limpeza do intervalo de keep-alive
+          bangws.current.onclose = () => {
+            clearInterval(keepAliveInterval);
+          };
+        };
+    
+        bangws.current.onmessage = (event) => {
+          const newMessage = event.data;
+          console.warn("Mensagem bang: ", newMessage);
+          const logCarta:LogCarta = JSON.parse(newMessage);
+          toast(`mensagem bang: ${logCarta.descricao}`);
+          console.log(logCarta); 
+        };
+    
+        bangws.current.onerror = (error) => {
+          console.error('Erro no WebSocket de Bangs:', error);
+        };
+    
+        bangws.current.onclose = () => {
+          console.log('Desconectado do WebSocket de Bangs');
+          
+          // Tentar reconectar após 3 segundos
+          setTimeout(() => { 
+            console.log('Tentando reconectar ao WebSocket de Bang...');
+            connect();
+          }, 3000);
+        };
+      };
+    
+      connect();
+    
+      // Fechar o WebSocket ao desmontar o componente
+      return () => {
+        bangws.current?.close();
+      };
+    }, []);
+
   return (
     <div className="w-full">
       <Tabs defaultValue="Jogadores" className="w-full">
@@ -476,7 +547,7 @@ function App() {
             value="Jogadores"
             className="hover:cursor-pointer focus:bg-[hsl(var(--primary))]"
           >
-            Jogadores
+            Jogos
           </TabsTrigger>
           <TabsTrigger
             value="personagens"
@@ -633,11 +704,11 @@ function App() {
               )}
               <Sheet>
                 <SheetTrigger>
-                  <div className="bg-[hsl(var(--primary))] hover:cursor-pointer rounded-xl p-2 ">
-                    Ver histórico do jogo
+                  <div className="fixed bottom-4 right-4 bg-[hsl(var(--primary))] text-white p-4 rounded-full shadow-lg hover:cursor-pointer">
+                    <FileClock></FileClock>
                   </div>
                 </SheetTrigger>
-                <SheetContent className="bg-gray-200">
+                <SheetContent className="bg-gray-200" style={{overflow: 'auto'}}>
                   <SheetHeader>
                     <SheetTitle>Histórico do Jogo</SheetTitle>
                     <SheetDescription>

@@ -6,7 +6,7 @@ use hyper::Method;
 use tokio::sync::{broadcast::{self, Sender}, Mutex};
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::core::{cartas::{compra_cartas, curar_personagem, dano_bang, descartar_carta}, iniciar_jogo, jogos::{self, carrega_jogos, carregar_jogo, entrar_jogo, passar_turno}, personagens::lista_personagens, AppState, Jogo};
+use crate::core::{cartas::{compra_cartas, curar_personagem, dano_bang, descartar_carta, usar_bang_alvo, JogadorCartaAlvo}, iniciar_jogo, jogos::{self, carrega_jogos, carregar_jogo, entrar_jogo, passar_turno}, personagens::lista_personagens, AppState, Jogo};
 use crate::core::jogos::usa_carta;
 
 async fn printa_jogos(state: &Arc<AppState>){
@@ -40,6 +40,99 @@ async fn listar_handler(Extension(state): Extension<Arc<AppState>>, ws: WebSocke
 
 async fn atualizar_estado(Extension(state): Extension<Arc<AppState>>, ws: WebSocketUpgrade, State(wsstate): State<WebSocketState>) -> impl IntoResponse {
     ws.on_upgrade(move |socket| handle_atualizar(Extension(state.clone()), socket, wsstate))
+}
+
+async fn bang_handler(Extension(state): Extension<Arc<AppState>>, ws: WebSocketUpgrade, State(wsstate): State<WebSocketState>) -> impl IntoResponse {
+    ws.on_upgrade(move |socket| handle_bang(Extension(state.clone()), socket, wsstate))
+}
+
+pub async fn handle_bang(
+    Extension(state): Extension<Arc<AppState>>, 
+    socket: WebSocket, 
+    wsstate: WebSocketState
+) {
+    let (ws_tx, mut ws_rx) = socket.split();
+    let ws_tx = Arc::new(Mutex::new(ws_tx));
+
+    let mut broadcast_rx = wsstate.broadcast_tx.lock().await.subscribe();
+    
+    tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                Some(result) = ws_rx.next() => {
+                    match result {
+                        Ok(msg) => {
+                            match msg.into_text() {
+                                Ok(info) => {
+                                    if info == "keep-alive-bang" {
+                                        println!("keep-alive recebido no handle_bang");
+                                        continue; // Mantém o WebSocket aberto
+                                    }
+
+                                    println!("info: {}", info);
+                                    
+                                    // Tenta deserializar a mensagem
+                                    let obj: Result<JogadorCartaAlvo, _> = serde_json::from_str(&info);
+                                    match obj {
+                                        Ok(obj) => {
+                                            println!("JogadorCartaAlvo: {}, {}, {}", obj.idjogo, obj.jogador.nome, obj.alvo.nome);
+                                            let id = obj.idjogo;
+
+                                            // Chama a função para processar o "bang"
+                                            if let Err(err) = usar_bang_alvo(Extension(state.clone()), Json(obj)).await {
+                                                eprintln!("Erro ao usar bang no alvo: {}", err);
+                                                continue;
+                                            }
+
+                                            // Carrega a lista de jogos
+                                            let jogos_list = carrega_jogos(&state).await;
+                                            if let Some(jogo) = jogos_list.iter().find(|jogo| jogo.id == id) {
+                                                let ultimo_log = jogo.logs.last().unwrap();
+                                                let message = ultimo_log.into();
+
+                                                // Envia a mensagem para todos os WebSockets via broadcast
+                                                if let Err(err) = wsstate.broadcast_tx.lock().await.send(Message::Text(message)) {
+                                                    eprintln!("Erro ao enviar mensagem de broadcast: {}", err);
+                                                    break;
+                                                }
+                                                println!("Mensagem enviada para todos os WebSockets.");
+                                            } else {
+                                                eprintln!("Jogo não encontrado para o id {}", id);
+                                            }
+                                        }
+                                        Err(err) => {
+                                            eprintln!("Erro ao converter mensagem para JogadorCartaAlvo: {}", err);
+                                            continue;
+                                        }
+                                    }
+                                }
+                                Err(err) => {
+                                    eprintln!("Erro ao converter mensagem para texto: {:?}", err);
+                                    break;
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            eprintln!("Erro ao receber mensagem WebSocket: {:?}", err);
+                            break;
+                        }
+                    }
+                }
+                Ok(broadcast_msg) = broadcast_rx.recv() => {
+                    // Envia mensagens do canal de broadcast para o WebSocket conectado
+                    if ws_tx.lock().await.send(broadcast_msg).await.is_err() {
+                        eprintln!("Erro ao enviar mensagem de broadcast para o WebSocket");
+                        break;
+                    }
+                }
+                else => {
+                    // Encerra o loop caso ambas as streams estejam fechadas
+                    break;
+                }
+            }
+        }
+        println!("Conexão WebSocket encerrada.");
+    });
 }
 
 #[derive(Debug, Clone)]
@@ -91,7 +184,6 @@ pub async fn handle_atualizar(
         println!("Fim do handle_atualizar.");
     });
 }
-
 
 
 pub async fn handle_atualizar2(Extension(state): Extension<Arc<AppState>>,  socket: WebSocket, wsstate: WebSocketState) {
@@ -187,6 +279,7 @@ pub fn cria_rotas() -> Router<>{
         .route("/atualizar_estado", get(atualizar_estado))
         .route("/curar_personagem", post(curar_personagem))
         .route("/dano_bang", post(dano_bang))
+        .route("/bang_ws", get(bang_handler))
 
         .layer(Extension(Arc::new(app_state)))
         .with_state(wsstate)

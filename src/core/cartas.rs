@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use axum::{Extension, Json};
+use axum::{extract::ws::Utf8Bytes, Extension, Json};
 use hyper::StatusCode;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
@@ -22,17 +22,35 @@ pub enum Carta{
     Saloon(InfoCarta)
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct LogCarta{
     pub nome_carta: String,
     pub nome_jogador: String,
     pub descricao: String
 }
 
+impl Into<Utf8Bytes> for &LogCarta{
+    fn into(self) -> Utf8Bytes {
+        let log = &LogCarta { nome_carta: self.nome_carta.clone(), nome_jogador: self.nome_jogador.clone(), descricao: self.descricao.clone()};
+        let log = log.to_owned();
+        let json = serde_json::to_string(&log).unwrap();
+        println!("json: {}", json);
+        Utf8Bytes::from(json)
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct JogadorJogo{
     jogador: Jogador,
     idjogo: u32
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct JogadorCartaAlvo{
+    pub jogador: Jogador,
+    pub idjogo: u32,
+    pub alvo: Jogador,
+    pub carta: Carta
 }
 
 pub async fn lista_cartas()
@@ -201,6 +219,32 @@ pub async fn dano_bang(Extension(state): Extension<Arc<AppState>>, alvo: Json<Jo
         nome_carta: "Bang".to_string(),
         nome_jogador: alvo.jogador.nome.clone(),
         descricao: format!("{} tomou 1 de dano um Bang!", alvo.jogador.nome),
+    };
+
+    jogo.logs.push(log);
+
+    atualiza_jogo(&state, jogo.to_owned()).await;
+
+    return Ok((StatusCode::OK, Json(jogo.to_owned())))
+}
+
+pub async fn usar_bang_alvo(Extension(state): Extension<Arc<AppState>>, input: Json<JogadorCartaAlvo>)
+    -> Result<(StatusCode, Json<Jogo>), StatusCode>{
+    if !verifica_jogo_existe(&state, input.idjogo).await{
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+    let mut jogos = carrega_jogos(&state).await;
+    let jogo = jogos.iter_mut().find(|jogo| jogo.id == input.idjogo).unwrap();
+
+    let mut nome_origem = input.jogador.nome.to_string();
+    nome_origem.push_str(" -> ");
+    nome_origem.push_str(&input.alvo.nome);
+
+
+    let log = LogCarta{
+        nome_carta: "Bang | WebSocket".to_string(),
+        nome_jogador: nome_origem,
+        descricao: format!("{} usou Bang em {}", input.jogador.nome, input.alvo.nome),
     };
 
     jogo.logs.push(log);
