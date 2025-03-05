@@ -31,3 +31,10 @@ export interface EntrarJogo{
   nome: string;
   idjogo: number;
 }
+
+export interface JogadorCartaAlvo{
+  jogador: Jogador;
+  idjogo: number;
+  alvo: Jogador;
+  carta: Carta;
+}

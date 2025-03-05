@@ -53,6 +53,21 @@ pub struct JogadorCartaAlvo{
     pub carta: Carta
 }
 
+impl Into<Utf8Bytes> for JogadorCartaAlvo{
+    fn into(self) -> Utf8Bytes {
+        let log = JogadorCartaAlvo{
+            jogador: self.jogador,
+            idjogo: self.idjogo,
+            alvo: self.alvo,
+            carta: self.carta,
+        };
+        let json = serde_json::to_string(&log).unwrap();
+        println!("json: {}", json);
+        Utf8Bytes::from(json)
+    }
+}
+
+
 pub async fn lista_cartas()
     -> Json<Vec<Carta>>{
     let cartas = vec![

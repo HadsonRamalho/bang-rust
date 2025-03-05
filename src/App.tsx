@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import type { Jogador } from "./interfaces/player/player";
-import type { CarregarJogoType, EntrarJogo, Jogo, LogCarta, LogsCartas } from "./interfaces/game/game";
+import type { CarregarJogoType, EntrarJogo, JogadorCartaAlvo, Jogo, LogCarta, LogsCartas } from "./interfaces/game/game";
 import { Bullet } from "./components/bullet";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -72,6 +72,7 @@ function App() {
 
   const [isBang, setIsBang] = useState(false);
   const [alvosBang, setAlvosBang] = useState<Jogador[]>();
+  const [bangGlobal, setBangGlobal] = useState<Carta>();
 
   const [playerNames, setPlayerNames] = useState<string[]>(
     Array(qtdPlayers).fill(""),
@@ -204,6 +205,7 @@ function App() {
 
       console.log('Jogadores no alcance da visão: ', jogadores);
       setAlvosBang(jogadores);
+      setBangGlobal(carta);
       let indexAnterior = players.findIndex((player) => player.nome === jogador.nome) - jogador.personagem.atributos.visao;
       if(indexAnterior < 0){
         indexAnterior = players.length - 1;
@@ -420,18 +422,6 @@ function App() {
     const jogadorExistente = jogoCarregadoVerificacao.jogadores.some((jogador) => jogador.nome === nome);
 
     if (jogadorExistente) {
-      
-      if (bangws.current?.readyState === WebSocket.OPEN) {
-        console.warn("bangws detectado");
-        const myobj = {
-          jogador: jogoCarregadoVerificacao.jogadores[0],
-          alvo: jogoCarregadoVerificacao.jogadores[1],
-          idjogo: jogoCarregadoVerificacao.id,
-          carta: jogoCarregadoVerificacao.jogadores[0].cartas[0]
-        };
-        bangws.current?.send(JSON.stringify(myobj));
-        console.warn("Enviou para o bang_ws");
-      }
       console.log("Jogador já está na partida");
       setJogo(jogoCarregadoVerificacao);
       setidjogo(jogoCarregadoVerificacao.id);
@@ -457,20 +447,6 @@ function App() {
     setTurno(jogoCarregado.turno);
     setLogs(jogoCarregado.logs);
     setAtualizaEstadoId(jogoCarregado.id); 
-
-    if (bangws.current?.readyState === WebSocket.OPEN) {
-      console.warn("bangws detectado");
-      const myobj = {
-        jogador: jogoCarregadoVerificacao.jogadores[0],
-        alvo: jogoCarregadoVerificacao.jogadores[1],
-        idjogo: jogoCarregadoVerificacao.id,
-        carta: jogoCarregadoVerificacao.jogadores[0].cartas[0]
-      };
-      bangws.current?.send(JSON.stringify(myobj));
-      console.warn("Enviou para o bang_ws");
-    } else{
-      console.error("BANG WS NÃO DETECTADO");
-    }
    };
 
   const causarDanoBang = async (alvo: Jogador) => {
@@ -510,10 +486,20 @@ function App() {
     
         bangws.current.onmessage = (event) => {
           const newMessage = event.data;
-          console.warn("Mensagem bang: ", newMessage);
-          const logCarta:LogCarta = JSON.parse(newMessage);
-          toast(`mensagem bang: ${logCarta.descricao}`);
-          console.log(logCarta); 
+          const logCarta: JogadorCartaAlvo = JSON.parse(newMessage);
+          const player = players.find((player) => player.nome === nome);
+          if (player && logCarta.idjogo === idjogo) {
+            player.cartas.forEach((carta) => {
+              const [tipo] = Object.entries(carta)[0];
+              if (tipo === "Esquiva" && logCarta.alvo.nome === nome
+                  ||( logCarta.alvo.personagem.nome === "Calamity Janet" && tipo === "Bang!")
+              ) {
+                alert("Você pode esquivar!");
+                // toggle alvo_carta_popup
+              }
+            });
+          }
+          console.log(logCarta);
         };
     
         bangws.current.onerror = (error) => {
@@ -578,6 +564,19 @@ function App() {
                         onClick={
                           async () => {await causarDanoBang(alvo);
                             alvo.personagem.atributos.vida_atual -= 1;
+                            if (bangws.current?.readyState === WebSocket.OPEN) {
+                              console.warn("bangws detectado");
+                              const myobj = {
+                                jogador: players.find((player) => (player.nome === nome)),
+                                alvo: alvo,
+                                idjogo: jogo?.id,
+                                carta: bangGlobal
+                              };
+                              bangws.current?.send(JSON.stringify(myobj));
+                              console.warn("Enviou para o bang_ws");
+                            } else{
+                              console.error("BANG WS NÃO DETECTADO");
+                            }
                           }
                         }>Bang!</Button>
                       </CardContent>

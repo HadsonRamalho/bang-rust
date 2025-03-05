@@ -79,16 +79,21 @@ pub async fn handle_bang(
                                             let id = obj.idjogo;
 
                                             // Chama a função para processar o "bang"
-                                            if let Err(err) = usar_bang_alvo(Extension(state.clone()), Json(obj)).await {
+                                            if let Err(err) = usar_bang_alvo(Extension(state.clone()), Json(JogadorCartaAlvo{
+                                                jogador: obj.jogador.clone(),
+                                                idjogo: obj.idjogo.clone(),
+                                                alvo: obj.alvo.clone(),
+                                                carta: obj.carta.clone()
+                                            })).await {
                                                 eprintln!("Erro ao usar bang no alvo: {}", err);
                                                 continue;
                                             }
 
                                             // Carrega a lista de jogos
+                                            // enviar info.alvo
                                             let jogos_list = carrega_jogos(&state).await;
                                             if let Some(jogo) = jogos_list.iter().find(|jogo| jogo.id == id) {
-                                                let ultimo_log = jogo.logs.last().unwrap();
-                                                let message = ultimo_log.into();
+                                                let message = obj.into();
 
                                                 // Envia a mensagem para todos os WebSockets via broadcast
                                                 if let Err(err) = wsstate.broadcast_tx.lock().await.send(Message::Text(message)) {
