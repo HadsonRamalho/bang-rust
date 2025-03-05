@@ -69,7 +69,7 @@ pub async fn handle_bang(
                                         continue; // Mantém o WebSocket aberto
                                     }
 
-                                    println!("info: {}", info);
+                                    println!("info-handle-bang: {}", info);
                                     
                                     // Tenta deserializar a mensagem
                                     let obj: Result<JogadorCartaAlvo, _> = serde_json::from_str(&info);
@@ -167,7 +167,7 @@ pub async fn handle_uso_carta(
                                         continue; // Mantém o WebSocket aberto
                                     }
 
-                                    println!("info: {}", info);
+                                    println!("info-uso-carta: {}", info);
                                     
                                     // Tenta deserializar a mensagem
                                     let obj: Result<DescartaCarta, _> = serde_json::from_str(&info);
@@ -235,7 +235,6 @@ pub struct WebSocketState {
 async fn toast_handler(Extension(state): Extension<Arc<AppState>>, ws: WebSocketUpgrade, State(wsstate): State<WebSocketState>) -> impl IntoResponse {
     ws.on_upgrade(move |socket| handle_toast(Extension(state.clone()), socket, wsstate))
 }
-
 pub async fn handle_toast(
     Extension(state): Extension<Arc<AppState>>, 
     socket: WebSocket, 
@@ -243,9 +242,10 @@ pub async fn handle_toast(
 ) {
     let (ws_tx, mut ws_rx) = socket.split();
     let ws_tx = Arc::new(Mutex::new(ws_tx));
-
     let mut broadcast_rx = wsstate.broadcast_tx.lock().await.subscribe();
-    
+
+    let sender_id = rand::random_range(1111111..9999999).to_string();
+
     tokio::spawn(async move {
         loop {
             tokio::select! {
@@ -259,28 +259,17 @@ pub async fn handle_toast(
                                         continue; // Mantém o WebSocket aberto
                                     }
 
-                                    println!("info: {}", info);
+                                    println!("info-handle-toast: {}", info);
                                     
-                                    // Tenta deserializar a mensagem
-                                    let obj: Result<String, ParseError> = info.parse::<String>();
-                                    match obj {
-                                        Ok(obj) => {
-                                            println!("handle_toast: {}", obj);                 
+                                    let message = format!("{}|{}", sender_id, info); // Prefixa com o ID do sender
+                                    let message = message.into();
 
-                                            let message = obj.into();  
-                                            // Envia a mensagem para todos os WebSockets via broadcast
-                                            if let Err(err) = wsstate.broadcast_tx.lock().await.send(Message::Text(message)) {
-                                                eprintln!("Erro ao enviar mensagem de broadcast do handle_toast: {}", err);
-                                                break;
-                                            }
-                                            println!("Mensagem enviada para todos os WebSockets pelo handle_toast.");
-
-                                        }
-                                        Err(err) => {
-                                            eprintln!("Erro ao converter mensagem para String do handle_toast: {}", err);
-                                            continue;
-                                        }
+                                    if let Err(err) = wsstate.broadcast_tx.lock().await.send(Message::Text(message)) {
+                                        eprintln!("Erro ao enviar mensagem de broadcast do handle_toast: {}", err);
+                                        break;
                                     }
+
+                                    println!("Mensagem enviada para todos os WebSockets pelo handle_toast.");
                                 }
                                 Err(err) => {
                                     eprintln!("Erro ao converter mensagem para texto: {:?}", err);
@@ -295,14 +284,22 @@ pub async fn handle_toast(
                     }
                 }
                 Ok(broadcast_msg) = broadcast_rx.recv() => {
-                    // Envia mensagens do canal de broadcast para o WebSocket conectado
+                    if let Message::Text(text) = &broadcast_msg {
+                        // Verifica se a mensagem foi enviada pelo próprio WebSocket
+                        if let Some((msg_sender, msg_content)) = text.split_once('|') {
+                            if msg_sender == sender_id {
+                                continue; // Ignora a própria mensagem
+                            }
+                        }
+                    }
+
+                    // Envia para o WebSocket
                     if ws_tx.lock().await.send(broadcast_msg).await.is_err() {
                         eprintln!("Erro ao enviar mensagem de broadcast para o WebSocket");
                         break;
                     }
                 }
                 else => {
-                    // Encerra o loop caso ambas as streams estejam fechadas
                     break;
                 }
             }

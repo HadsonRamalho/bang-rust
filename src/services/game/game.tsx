@@ -69,7 +69,7 @@ export async function compraCartas(jogador: Jogador, idjogo: number): Promise<Ca
 
 export async function carregaJogo(entrarJogo: EntrarJogo): Promise<Jogo> {
   try {
-    const res = await client.post<Jogo>('https://j1p43lfm-3069.brs.devtunnels.ms/carregar_jogo', {
+    const res = await client.post<Jogo>('https://g6v9psc0-3069.brs.devtunnels.ms/carregar_jogo', {
       nome: entrarJogo.nome,
       idjogo: entrarJogo.idjogo,
     });
@@ -86,7 +86,7 @@ export async function carregaJogo(entrarJogo: EntrarJogo): Promise<Jogo> {
 
 export async function entraJogo(entrarJogo: EntrarJogo): Promise<Jogo> {
   try {
-    const res = await client.post<Jogo>('https://j1p43lfm-3069.brs.devtunnels.ms/entrar_jogo', {
+    const res = await client.post<Jogo>('https://g6v9psc0-3069.brs.devtunnels.ms/entrar_jogo', {
       nome: entrarJogo.nome,
       idjogo: entrarJogo.idjogo,
     });
@@ -103,7 +103,7 @@ export async function entraJogo(entrarJogo: EntrarJogo): Promise<Jogo> {
 
 export async function passaTurno(entrarJogo: EntrarJogo): Promise<Jogo> {
   try {
-    const res = await client.post<Jogo>('https://j1p43lfm-3069.brs.devtunnels.ms/passar_turno', {
+    const res = await client.post<Jogo>('https://g6v9psc0-3069.brs.devtunnels.ms/passar_turno', {
       nome: entrarJogo.nome,
       idjogo: entrarJogo.idjogo,
     });

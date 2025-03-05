@@ -78,6 +78,22 @@ function App() {
     Array(qtdPlayers).fill(""),
   );
 
+  const confirmaBang = (alvo: Jogador) => {
+    if (bangws.current?.readyState === WebSocket.OPEN) {
+      console.warn("bangws detectado");
+      const myobj = {
+        jogador: players.find((player) => player.nome === nome),
+        alvo: alvo,
+        idjogo: jogo?.id,
+        carta: bangGlobal,
+      };
+      bangws.current?.send(JSON.stringify(myobj));
+      console.warn("Enviou para o bang_ws");
+      } else {
+      console.error("BANG WS NÃO DETECTADO");
+      }
+  }
+
   const loadGame = async () => {
     setLogs([]);
     const res: Jogo = await iniciaJogo(playerNames);
@@ -113,7 +129,7 @@ function App() {
     setidjogo(res.id);
     setAtualizaEstadoId(res.id);
     setNome(res.jogadores[0].nome);
-    const ws = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/listar_handler');
+    const ws = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/listar_handler');
 
     ws.onopen = () => {
       console.log('Conectado ao WebSocket de Listagem do LoadGame');
@@ -173,7 +189,7 @@ function App() {
         setAtualizaEstadoId(jogoCurar.id);
       });
       if (toast_ws.current?.readyState === WebSocket.OPEN) {
-        toast_ws.current?.send(`Todos os jogadores foram curados!`);
+        toast_ws.current?.send("Todos os jogadores foram curados!");
         console.warn("Enviou para o toast");
       }
     }
@@ -191,7 +207,7 @@ function App() {
     }
     if(tipo === "Bang"){
       setIsBang(true);
-      let jogadores = [];
+      const jogadores = [];
       for (let i = 1; i <= jogador.personagem.atributos.visao; i++) {
         let indexAnterior = players.findIndex((player) => player.nome === jogador.nome) - i;
         let indexPosterior = players.findIndex((player) => player.nome === jogador.nome) + i;
@@ -218,18 +234,6 @@ function App() {
       if(indexPosterior >= players.length){
         indexPosterior = 0;
       }
-      toast(`Próximo player: ${players[indexPosterior].nome}`);
-      toast(`Player anterior: ${players[indexAnterior].nome}`);
-    }
-    if (cartaws.current?.readyState === WebSocket.OPEN) {
-      console.warn("uso carta detectado");
-      const myobj = {
-        jogador: jogador,
-        idjogo: jogo?.id,
-        carta: carta
-      };
-      //cartaws.current?.send(JSON.stringify(myobj));
-      //console.warn("Enviou para o uso-carta");
     }
     const jogoAtualizado = await carregaJogo({nome: jogador.nome, idjogo: jogo.id});;
     setJogo(jogoAtualizado);
@@ -321,7 +325,7 @@ function App() {
 
 
   const conectarJogo = () => {
-    const ws = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/ws');
+    const ws = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/ws');
 
     ws.onopen = () => {
       console.log('Conectado ao WebSocket');
@@ -371,7 +375,7 @@ function App() {
 
   useEffect(() => {
     const connect = () => {
-      myws.current = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/listar_handler');
+      myws.current = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/listar_handler');
 
       myws.current.onopen = () => {
         console.log('Conectado ao WebSocket de Listagem');
@@ -483,7 +487,7 @@ function App() {
 
     useEffect(() => {
       const connect = () => {
-        bangws.current = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/bang_ws');
+        bangws.current = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/bang_ws');
     
         bangws.current.onopen = () => {
           console.log('Conectado ao WebSocket de Bangs');
@@ -510,14 +514,14 @@ function App() {
           const logCarta: JogadorCartaAlvo = JSON.parse(newMessage);
           const player = players.find((player) => player.nome === nome);
           if (player && logCarta.idjogo === idjogo) {
-            player.cartas.forEach((carta) => {
+            for (const carta of player.cartas) {
               const [tipo] = Object.entries(carta)[0];
               if (tipo === "Esquiva" && logCarta.alvo.nome === player.nome
-                  ||( logCarta.alvo.personagem.nome === "Calamity Janet" && tipo === "Bang!")
+                || (logCarta.alvo.personagem.nome === "Calamity Janet" && tipo === "Bang!")
               ) {
                 setBangTarget(logCarta.alvo.nome);
               }
-            });
+            }
           }
           console.log(logCarta);
         };
@@ -550,7 +554,7 @@ function App() {
 
     useEffect(() => {
       const connect = () => {
-        cartaws.current = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/uso_carta_handler');
+        cartaws.current = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/uso_carta_handler');
     
         cartaws.current.onopen = () => {
           console.log('Conectado ao WebSocket de Uso de Carta');
@@ -609,7 +613,7 @@ function App() {
 
     useEffect(() => {
       const connect = () => {
-        toast_ws.current = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/toast_ws');
+        toast_ws.current = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/toast_ws');
     
         toast_ws.current.onopen = () => {
           console.log('Conectado ao WebSocket de Toast');
@@ -633,7 +637,10 @@ function App() {
     
         toast_ws.current.onmessage = (event) => {
           const newMessage = event.data;
-          toast(newMessage);
+          const [, message] = newMessage.split("|"); // Divide o ID do conteúdo
+          if(!message.includes('"cartas":[')){
+            toast(message);
+          }
         };
     
         toast_ws.current.onerror = (error) => {
@@ -689,29 +696,15 @@ function App() {
                     <Card className="border-[hsl(var(--primary))] m-2 flex items-center" key={alvo.nome}>
                       <CardContent className="flex items-center">
                         <Avatar>
-                          <img src={`${alvo.personagem.nome}.png`}></img>
+                          <img src={`${alvo.personagem.nome}.png`} alt={`imagem de ${alvo.personagem.nome}`}/>
                         </Avatar>
                         <p>Jogador: {alvo.nome}</p>
                         <p>Personagem: {alvo.personagem.nome}</p>
                         <p>Vida Atual: {alvo.personagem.atributos.vida_atual}</p>
                         <Button className="bg-[hsl(var(--primary))] hover:cursor-pointer"
-                        onClick={
-                          async () => {
-                            if (bangws.current?.readyState === WebSocket.OPEN) {
-                              console.warn("bangws detectado");
-                              const myobj = {
-                                jogador: players.find((player) => (player.nome === nome)),
-                                alvo: alvo,
-                                idjogo: jogo?.id,
-                                carta: bangGlobal
-                              };
-                              bangws.current?.send(JSON.stringify(myobj));
-                              console.warn("Enviou para o bang_ws");
-                            } else{
-                              console.error("BANG WS NÃO DETECTADO");
-                            }
-                          }
-                        }>Bang!</Button>
+                        onClick={() => {
+                          confirmaBang(alvo)
+                        }}>Bang!</Button>
                       </CardContent>
                     </Card>
                   ))
@@ -724,7 +717,6 @@ function App() {
           </AlertDialogContent>
         </AlertDialog>
         <AlertDialog open={bangTarget === nome && bangTarget !== ""}>
-  <AlertDialogTrigger></AlertDialogTrigger>
   <AlertDialogContent className="bg-white">
     <AlertDialogHeader>
       <AlertDialogTitle>Você foi alvo de um Bang!</AlertDialogTitle>
@@ -860,7 +852,7 @@ function App() {
               <Sheet>
                 <SheetTrigger>
                   <div className="fixed bottom-4 right-4 bg-[hsl(var(--primary))] text-white p-4 rounded-full shadow-lg hover:cursor-pointer">
-                    <FileClock></FileClock>
+                    <FileClock/>
                   </div>
                 </SheetTrigger>
                 <SheetContent className="bg-gray-200" style={{overflow: 'auto'}}>
