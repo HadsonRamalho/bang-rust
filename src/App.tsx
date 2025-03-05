@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import type { Jogador } from "./interfaces/player/player";
-import type { CarregarJogoType, EntrarJogo, JogadorCartaAlvo, Jogo, LogCarta, LogsCartas } from "./interfaces/game/game";
+import type { CarregarJogoType, DescartaCarta, EntrarJogo, JogadorCartaAlvo, Jogo, LogCarta, LogsCartas } from "./interfaces/game/game";
 import { Bullet } from "./components/bullet";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -172,12 +172,17 @@ function App() {
         setTurno(jogoCurar.turno);
         setAtualizaEstadoId(jogoCurar.id);
       });
+      if (toast_ws.current?.readyState === WebSocket.OPEN) {
+        toast_ws.current?.send(`Todos os jogadores foram curados!`);
+        console.warn("Enviou para o toast");
+      }
     }
     if(tipo === "Cerveja"){
       const jogoCurar = await curaPersonagem(jogador, jogo.id, carta);
-      toast(`${jogador.nome} foi curado!`, {
-        duration: 3000
-      });
+      if (toast_ws.current?.readyState === WebSocket.OPEN) {
+        toast_ws.current?.send(`${jogador.nome} foi curado!`);
+        console.warn("Enviou para o toast");
+      }
       setJogo(jogoCurar);
       setLogs(jogoCurar.logs);
       setPlayers(jogoCurar.jogadores);
@@ -185,7 +190,6 @@ function App() {
       setAtualizaEstadoId(jogoCurar.id);
     }
     if(tipo === "Bang"){
-      toast("BANG");
       setIsBang(true);
       let jogadores = [];
       for (let i = 1; i <= jogador.personagem.atributos.visao; i++) {
@@ -217,16 +221,21 @@ function App() {
       toast(`Próximo player: ${players[indexPosterior].nome}`);
       toast(`Player anterior: ${players[indexAnterior].nome}`);
     }
+    if (cartaws.current?.readyState === WebSocket.OPEN) {
+      console.warn("uso carta detectado");
+      const myobj = {
+        jogador: jogador,
+        idjogo: jogo?.id,
+        carta: carta
+      };
+      //cartaws.current?.send(JSON.stringify(myobj));
+      //console.warn("Enviou para o uso-carta");
+    }
     const jogoAtualizado = await carregaJogo({nome: jogador.nome, idjogo: jogo.id});;
     setJogo(jogoAtualizado);
     setLogs(jogoAtualizado.logs);
     setPlayers(jogoAtualizado.jogadores);
     setTurno(jogoAtualizado.turno);
-    toast(`${res.jogador.nome} usou ${tipo}!`, {
-      style: {
-        backgroundColor: "hsl(var(--orange-1))",
-      },
-    });
   };
 
   const comprarCartas = async (jogador: Jogador) => {
@@ -247,6 +256,11 @@ function App() {
       setAtualizaEstadoId(jogo.id);
     }
 
+    if (toast_ws.current?.readyState === WebSocket.OPEN) {
+      toast_ws.current?.send(`${jogador.nome} comprou ${cartas.length} cartas`);
+      console.warn("Enviou para o toast");
+    }
+
     return cartas
   }
 
@@ -255,7 +269,10 @@ function App() {
       return;
     }
     const cartaDescartada = await descartaCarta(jogador, idjogo, carta);
-    toast(`${jogador.nome} descartou ${cartaDescartada}`);
+    if (toast_ws.current?.readyState === WebSocket.OPEN) {
+      toast_ws.current?.send(`${jogador.nome} descartou ${cartaDescartada}`);
+      console.warn("Enviou para o toast");
+    }
     const jogoAtualizado = await carregaJogo({nome: jogador.nome, idjogo: idjogo});
     setJogo(jogoAtualizado);
     setPlayers(jogoAtualizado.jogadores);
@@ -452,13 +469,17 @@ function App() {
   const causarDanoBang = async (alvo: Jogador) => {
     if(idjogo){
       await danoBang(alvo, idjogo);
-      toast(`${alvo.nome} sofreu dano de um Bang!`);
+      if (toast_ws.current?.readyState === WebSocket.OPEN) {
+        toast_ws.current?.send(`${alvo.nome} sofreu dano de um Bang!`);
+        console.warn("Enviou para o toast");
+      }
       const jogoAtualizar = await carregaJogo({nome: nome, idjogo: Number(idjogo)});
       console.log(jogoAtualizar);
     }
     }
 
     const bangws = useRef<WebSocket | null>(null);
+    const [bangTarget, setBangTarget] = useState<string>();
 
     useEffect(() => {
       const connect = () => {
@@ -491,11 +512,10 @@ function App() {
           if (player && logCarta.idjogo === idjogo) {
             player.cartas.forEach((carta) => {
               const [tipo] = Object.entries(carta)[0];
-              if (tipo === "Esquiva" && logCarta.alvo.nome === nome
+              if (tipo === "Esquiva" && logCarta.alvo.nome === player.nome
                   ||( logCarta.alvo.personagem.nome === "Calamity Janet" && tipo === "Bang!")
               ) {
-                alert("Você pode esquivar!");
-                // toggle alvo_carta_popup
+                setBangTarget(logCarta.alvo.nome);
               }
             });
           }
@@ -522,6 +542,120 @@ function App() {
       // Fechar o WebSocket ao desmontar o componente
       return () => {
         bangws.current?.close();
+      };
+    }, []);
+
+
+    const cartaws = useRef<WebSocket | null>(null);
+
+    useEffect(() => {
+      const connect = () => {
+        cartaws.current = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/uso_carta_handler');
+    
+        cartaws.current.onopen = () => {
+          console.log('Conectado ao WebSocket de Uso de Carta');
+          
+          // Enviar mensagens de keep-alive periodicamente
+          const keepAliveInterval = setInterval(() => {
+            if (cartaws.current?.readyState === WebSocket.OPEN) {
+              cartaws.current.send('keep-alive-uso-carta');
+            }
+          }, 15000); // Envia a cada 15 segundos
+
+          if (!cartaws.current){
+            return;
+          }
+    
+          // Limpeza do intervalo de keep-alive
+          cartaws.current.onclose = () => {
+            clearInterval(keepAliveInterval);
+          };
+        };
+    
+        cartaws.current.onmessage = (event) => {
+          const newMessage = event.data;
+          const logCarta: DescartaCarta = JSON.parse(newMessage);
+          const [tipo] = Object.entries(logCarta.carta)[0];
+          if (toast_ws.current?.readyState === WebSocket.OPEN) {
+            toast_ws.current?.send(`${logCarta.jogador.nome} usou ${tipo}`);
+            console.warn("Enviou para o toast");
+          }
+          };
+    
+        cartaws.current.onerror = (error) => {
+          console.error('Erro no WebSocket de Uso de Carta:', error);
+        };
+    
+        cartaws.current.onclose = () => {
+          console.log('Desconectado do WebSocket de Uso de Carta');
+          
+          // Tentar reconectar após 3 segundos
+          setTimeout(() => { 
+            console.log('Tentando reconectar ao WebSocket de Uso de Carta...');
+            connect();
+          }, 3000);
+        };
+      };
+    
+      connect();
+    
+      // Fechar o WebSocket ao desmontar o componente
+      return () => {
+        cartaws.current?.close();
+      };
+    }, []);
+  
+    const toast_ws = useRef<WebSocket | null>(null);
+
+    useEffect(() => {
+      const connect = () => {
+        toast_ws.current = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/toast_ws');
+    
+        toast_ws.current.onopen = () => {
+          console.log('Conectado ao WebSocket de Toast');
+          
+          // Enviar mensagens de keep-alive periodicamente
+          const keepAliveInterval = setInterval(() => {
+            if (toast_ws.current?.readyState === WebSocket.OPEN) {
+              toast_ws.current.send('keep-alive-toast');
+            }
+          }, 15000); // Envia a cada 15 segundos
+
+          if (!toast_ws.current){
+            return;
+          }
+    
+          // Limpeza do intervalo de keep-alive
+          toast_ws.current.onclose = () => {
+            clearInterval(keepAliveInterval);
+          };
+        };
+    
+        toast_ws.current.onmessage = (event) => {
+          const newMessage = event.data;
+          toast(newMessage);
+        };
+    
+        toast_ws.current.onerror = (error) => {
+          console.error('Erro no WebSocket de Toast:', error);
+        };
+    
+        toast_ws.current.onclose = () => {
+          console.log('Desconectado do WebSocket de Toast');
+          
+          // Tentar reconectar após 3 segundos
+          setTimeout(() => { 
+            console.log('Tentando reconectar ao WebSocket de Toast...');
+            connect();
+          }, 3000);
+        };
+      };
+    
+      connect();
+    
+      // Fechar o WebSocket ao desmontar o componente
+      return () => {
+        toast_ws.current?.close();
       };
     }, []);
 
@@ -562,8 +696,7 @@ function App() {
                         <p>Vida Atual: {alvo.personagem.atributos.vida_atual}</p>
                         <Button className="bg-[hsl(var(--primary))] hover:cursor-pointer"
                         onClick={
-                          async () => {await causarDanoBang(alvo);
-                            alvo.personagem.atributos.vida_atual -= 1;
+                          async () => {
                             if (bangws.current?.readyState === WebSocket.OPEN) {
                               console.warn("bangws detectado");
                               const myobj = {
@@ -590,6 +723,29 @@ function App() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        <AlertDialog open={bangTarget === nome && bangTarget !== ""}>
+  <AlertDialogTrigger></AlertDialogTrigger>
+  <AlertDialogContent className="bg-white">
+    <AlertDialogHeader>
+      <AlertDialogTitle>Você foi alvo de um Bang!</AlertDialogTitle>
+      <AlertDialogDescription>
+        Alguém usou uma carta Bang em você. Você pode se esquivar ou optar por receber o dano.
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <Button className="hover:cursor-pointer hover:bg-[hsl(var(--primary))]" onClick={async () => {
+        setBangTarget("")
+        const playerIndex = players.findIndex((player) => player.nome === nome);
+        const playerAlvo = players[playerIndex];
+        await causarDanoBang(playerAlvo);
+      }}>Receber dano</Button>
+      <AlertDialogAction className="hover:cursor-pointer hover:bg-[hsl(var(--primary))]" onClick={async () => {
+        setBangTarget("");
+      }}>Esquivar</AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
+
             <CardHeader>
               Salas disponíveis
             </CardHeader>
@@ -899,27 +1055,23 @@ function App() {
                                 nome_jogador: `${player.nome}`
                               }
                               setLogs((prevLogs) => [...prevLogs, log]);
-                              toast(
-                                `${player.nome} passou a vez para ${players[indexPlayer + 1].nome}.`,
-                              );
+                              if (toast_ws.current?.readyState === WebSocket.OPEN) {
+                                toast_ws.current?.send(`${player.nome} passou a vez para ${players[indexPlayer + 1].nome}`);
+                                console.warn("Enviou para o toast");
+                              }
 
                               const novasCartas = await comprarCartas(players[indexPlayer + 1]);
                               players[indexPlayer + 1].cartas = players[indexPlayer + 1].cartas.concat(novasCartas);
-                              toast(
-                                `${players[indexPlayer + 1].nome} comprou ${novasCartas.length} cartas.`,
-                              );
                             }
                             if (!players[indexPlayer + 1]) {
                               await passarTurno(players[0].nome);
 
-                              toast(
-                                `${player.nome} passou a vez para ${players[0].nome}.`,
-                              );
+                              if (toast_ws.current?.readyState === WebSocket.OPEN) {
+                                toast_ws.current?.send(`${player.nome} passou a vez para ${players[0].nome}`);
+                                console.warn("Enviou para o toast");
+                              }
                               const novasCartas = await comprarCartas(players[0]);
                               players[0].cartas = players[0].cartas.concat(novasCartas);
-                              toast(
-                                `${players[0].nome} comprou ${novasCartas.length} cartas.`,
-                              );
                             }
                           }}
                           className="bg-[hsl(var(--primary))] hover:cursor-pointer"

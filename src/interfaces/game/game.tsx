@@ -38,3 +38,9 @@ export interface JogadorCartaAlvo{
   alvo: Jogador;
   carta: Carta;
 }
+
+export interface DescartaCarta{
+  idjogo: number;
+  jogador: Jogador;
+  carta: Carta;
+}

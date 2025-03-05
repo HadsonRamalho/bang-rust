@@ -151,6 +151,20 @@ pub struct DescartaCarta{
     pub carta: Carta
 }
 
+impl Into<Utf8Bytes> for DescartaCarta{
+    fn into(self) -> Utf8Bytes {
+        let log = DescartaCarta{
+            jogador: self.jogador,
+            idjogo: self.idjogo,
+            carta: self.carta,
+        };
+        let json = serde_json::to_string(&log).unwrap();
+        println!("json: {}", json);
+        Utf8Bytes::from(json)
+    }
+}
+
+
 pub async fn descartar_carta(Extension(state): Extension<Arc<AppState>>,  input: Json<DescartaCarta>)
     -> Result<(StatusCode, Json<String>), StatusCode>{
     if !verifica_jogo_existe(&state, input.idjogo).await{
