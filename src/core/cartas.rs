@@ -19,7 +19,9 @@ pub enum Carta{
     Bang(InfoCarta),
     Esquiva(InfoCarta),
     Cerveja(InfoCarta),
-    Saloon(InfoCarta)
+    Saloon(InfoCarta),
+    Carruagem(InfoCarta),
+    Transporte(InfoCarta),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -41,8 +43,15 @@ impl Into<Utf8Bytes> for &LogCarta{
 
 #[derive(Serialize, Deserialize)]
 pub struct JogadorJogo{
-    jogador: Jogador,
-    idjogo: u32
+    pub jogador: Jogador,
+    pub idjogo: u32
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct JogadorJogoLimite{
+    pub jogador: Jogador,
+    pub idjogo: u32,
+    pub limite: i32
 }
 
 #[derive(Serialize, Deserialize)]
@@ -93,7 +102,15 @@ pub async fn lista_cartas()
             nome: "Saloon".to_string(),
             descricao: "Ao ser usada, paga-se uma rodada de cervejas para todos, 
             recuperando 1 ponto de vida de cada um dos jogadores ainda em jogo.".to_string()
-        })
+        }),    
+        Carta::Carruagem(InfoCarta{
+            nome: "Carruagem".to_string(),
+            descricao: "Ao ser usada, compra mais 2 cartas da Pilha de Compras.".to_string()
+        }),
+        Carta::Transporte(InfoCarta{
+            nome: "Transporte".to_string(),
+            descricao: "Ao ser usada, compra mais 3 cartas da Pilha de Compras.".to_string()
+        }),    
     ];
 
     Json(cartas)
@@ -122,9 +139,10 @@ pub async fn compra_cartas(Extension(state): Extension<Arc<AppState>>, input: Js
 
     let mut cartas = vec![];
     let mut rng = StdRng::from_os_rng();
-    for i in 0..limite_compra.min(cartasfinal.len() as i32) {
-        let index = rng.random_range(0..limite_compra);
-        cartas.push(cartasfinal[index as usize].clone());
+    let limite = limite_compra as usize;
+    for i in 0..limite as usize {
+        let index = rng.random_range(0..cartasfinal.len() - 1);
+        cartas.push(cartasfinal[index as usize].clone());        
     }
 
     jogo.jogadores.iter_mut().filter(|p| p.nome == input.jogador.nome).for_each(|p| p.cartas.extend(cartas.clone()));
@@ -180,7 +198,9 @@ pub async fn descartar_carta(Extension(state): Extension<Arc<AppState>>,  input:
         Carta::Bang(_) => "Bang",
         Carta::Esquiva(_) => "Esquiva",
         Carta::Cerveja(_) => "Cerveja",
-        Carta::Saloon(_) => "Saloon"
+        Carta::Saloon(_) => "Saloon",
+        Carta::Carruagem(_) => "Carruagem",
+        Carta::Transporte(_) => "Transporte"
     };
 
     if let Some(jogador) = jogo.jogadores.iter_mut().find(|p| p.nome == input.jogador.nome) {
@@ -219,7 +239,9 @@ pub async fn curar_personagem(Extension(state): Extension<Arc<AppState>>, input:
         Carta::Bang(_) => "Bang",
         Carta::Esquiva(_) => "Esquiva",
         Carta::Cerveja(_) => "Cerveja",
-        Carta::Saloon(_) => "Saloon"
+        Carta::Saloon(_) => "Saloon",
+        Carta::Carruagem(_) => "Carruagem",
+        Carta::Transporte(_) => "Transporte"
     };
 
     jogo.logs.push(LogCarta{
@@ -281,4 +303,47 @@ pub async fn usar_bang_alvo(Extension(state): Extension<Arc<AppState>>, input: J
     atualiza_jogo(&state, jogo.to_owned()).await;
 
     return Ok((StatusCode::OK, Json(jogo.to_owned())))
+}
+
+pub async fn compra_cartas_especial(Extension(state): Extension<Arc<AppState>>, input: Json<JogadorJogoLimite>)
+    -> Result<(StatusCode, Json<Vec<Carta>>), StatusCode>{
+    
+    if !verifica_jogo_existe(&state, input.idjogo).await{
+        return Err(StatusCode::INTERNAL_SERVER_ERROR)
+    }
+    
+    let mut jogos = carrega_jogos(&state).await;
+    let jogo = jogos.iter_mut().find(|jogo| jogo.id == input.idjogo).unwrap();
+
+    let limite_compra = input.limite;
+    
+    let cartas = lista_cartas().await.0;
+    let cartas2 = lista_cartas().await.0;
+    let cartas3 = lista_cartas().await.0;
+    let mut cartasfinal = cartas.clone();
+    cartasfinal.extend(cartas2);
+    cartasfinal.extend(cartas3);
+
+    let mut cartas = vec![];
+    let mut rng = StdRng::from_os_rng();
+    for i in 0..limite_compra {
+        let index = rng.random_range(0..limite_compra);
+        cartas.push(cartasfinal[index as usize].clone());
+    }
+
+    jogo.jogadores.iter_mut().filter(|p| p.nome == input.jogador.nome).for_each(|p| p.cartas.extend(cartas.clone()));
+
+    jogo.logs.push(LogCarta{
+        nome_carta: "Compra".to_string(),
+        nome_jogador: input.jogador.nome.to_string(),
+        descricao: format!("{} comprou {} cartas.", input.jogador.nome, cartas.len())
+    });    
+
+    {
+        if let Some(jogo_mut) = state.jogos.lock().await.iter_mut().find(|j| j.id == input.idjogo) {
+            *jogo_mut = jogo.to_owned();
+        }
+    }
+
+    return Ok((StatusCode::OK, Json(cartas)))
 }

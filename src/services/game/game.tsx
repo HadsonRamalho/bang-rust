@@ -67,6 +67,24 @@ export async function compraCartas(jogador: Jogador, idjogo: number): Promise<Ca
   }
 }
 
+export async function compraCartasEspecial(jogador: Jogador, idjogo: number, limite: number): Promise<Carta[]> {
+  try {
+    const res = await client.post<Carta[]>("/compra_cartas_especial", {
+      jogador: jogador,
+      idjogo: idjogo,
+      limite: limite
+    });
+    const data: Carta[] = res.data;
+    return data;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    console.error(error.response?.status, error.message);
+    throw new Error(
+      `Falha ao comprar cartas: Código [${error.response?.status}]`
+    );
+  }
+}
+
 export async function carregaJogo(entrarJogo: EntrarJogo): Promise<Jogo> {
   try {
     const res = await client.post<Jogo>('https://g6v9psc0-3069.brs.devtunnels.ms/carregar_jogo', {

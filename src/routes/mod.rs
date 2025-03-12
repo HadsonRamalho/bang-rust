@@ -6,7 +6,7 @@ use hyper::Method;
 use tokio::sync::{broadcast::{self, Sender}, Mutex};
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::core::{cartas::{compra_cartas, curar_personagem, dano_bang, descartar_carta, usar_bang_alvo, DescartaCarta, JogadorCartaAlvo, LogCarta}, iniciar_jogo, jogos::{self, carrega_jogos, carregar_jogo, entrar_jogo, passar_turno}, personagens::lista_personagens, AppState, Jogo};
+use crate::core::{cartas::{compra_cartas, compra_cartas_especial, curar_personagem, dano_bang, descartar_carta, usar_bang_alvo, DescartaCarta, JogadorCartaAlvo, LogCarta}, iniciar_jogo, jogos::{self, carrega_jogos, carregar_jogo, entrar_jogo, passar_turno}, personagens::lista_personagens, AppState, Jogo};
 use crate::core::jogos::usa_carta;
 
 async fn printa_jogos(state: &Arc<AppState>){
@@ -450,6 +450,7 @@ pub fn cria_rotas() -> Router<>{
         .route("/bang_ws", get(bang_handler))
         .route("/uso_carta_handler", get(uso_carta_handler))
         .route("/toast_ws", get(toast_handler))
+        .route("/compra_cartas_especial", post(compra_cartas_especial))
 
         .layer(Extension(Arc::new(app_state)))
         .with_state(wsstate)

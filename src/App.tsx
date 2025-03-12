@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { carregaJogo, compraCartas, curaPersonagem, danoBang, descartaCarta, entraJogo, iniciaJogo, listaPersonagens, passaTurno, usaCarta } from "./services/game/game";
+import { carregaJogo, compraCartas, compraCartasEspecial, curaPersonagem, danoBang, descartaCarta, entraJogo, iniciaJogo, listaPersonagens, passaTurno, usaCarta } from "./services/game/game";
 import type { Personagem } from "./interfaces/character/character";
 import { Avatar } from "./components/ui/avatar";
 import { CardSvgIcon } from "./components/card-svg-icon";
@@ -205,6 +205,21 @@ function App() {
       setTurno(jogoCurar.turno);
       setAtualizaEstadoId(jogoCurar.id);
     }
+    if(tipo === "Carruagem"){
+      const cartas = await comprarCartasEspecial(jogador, 2);
+      if (toast_ws.current?.readyState === WebSocket.OPEN) {
+        toast_ws.current?.send(`${jogador.nome} usou Carruagem!`);
+        console.warn("Enviou para o toast");
+      }
+    }
+    if(tipo === "Transporte"){
+      const cartas = await comprarCartasEspecial(jogador, 3);
+      if (toast_ws.current?.readyState === WebSocket.OPEN) {
+        toast_ws.current?.send(`${jogador.nome} usou Transporte!`);
+        console.warn("Enviou para o toast");
+      }
+      console.log(cartas);
+    }
     if(tipo === "Bang"){
       setIsBang(true);
       const jogadores = [];
@@ -250,6 +265,27 @@ function App() {
       return cartas;
     }
     const cartas = await compraCartas(jogador, Number(idjogo));
+
+    const jogoAtualizado = await carregaJogo({nome: jogador.nome, idjogo: Number(idjogo)});
+    setJogo(jogoAtualizado);
+    console.log("jogo atualizado: ", jogoAtualizado);
+    setLogs(jogoAtualizado.logs);
+    setPlayers(jogoAtualizado.jogadores);
+    if(jogo){
+      setAtualizaEstadoId(jogo.id);
+    }
+
+    if (toast_ws.current?.readyState === WebSocket.OPEN) {
+      toast_ws.current?.send(`${jogador.nome} comprou ${cartas.length} cartas`);
+      console.warn("Enviou para o toast");
+    }
+
+    return cartas
+  }
+
+  const comprarCartasEspecial = async (jogador: Jogador, limite: number) => {
+    console.log("jogador: ", jogador);
+    const cartas = await compraCartasEspecial(jogador, Number(idjogo), limite);
 
     const jogoAtualizado = await carregaJogo({nome: jogador.nome, idjogo: Number(idjogo)});
     setJogo(jogoAtualizado);
@@ -716,7 +752,7 @@ function App() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        <AlertDialog open={bangTarget === nome && bangTarget !== ""}>
+        <AlertDialog open={bangTarget === nome}>
   <AlertDialogContent className="bg-white">
     <AlertDialogHeader>
       <AlertDialogTitle>Você foi alvo de um Bang!</AlertDialogTitle>
@@ -733,6 +769,11 @@ function App() {
       }}>Receber dano</Button>
       <AlertDialogAction className="hover:cursor-pointer hover:bg-[hsl(var(--primary))]" onClick={async () => {
         setBangTarget("");
+        if (toast_ws.current?.readyState === WebSocket.OPEN) {
+          toast_ws.current?.send(`${nome} se esquivou de um Bang!`);
+          toast("Você se esquivou!");
+          console.warn("Enviou para o toast");
+        }
       }}>Esquivar</AlertDialogAction>
     </AlertDialogFooter>
   </AlertDialogContent>

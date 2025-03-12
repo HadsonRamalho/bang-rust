@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::core::cartas::{Carta, InfoCarta};
+use crate::core::cartas::{compra_cartas, compra_cartas_especial, Carta, InfoCarta, JogadorJogo, JogadorJogoLimite};
 use crate::core::Jogo;
 use crate::core::Jogador;
 use axum::{Extension, Json};
@@ -28,6 +28,8 @@ pub async fn usa_carta(Extension(state): Extension<Arc<AppState>>, input: Json<C
         return Err(StatusCode::INTERNAL_SERVER_ERROR)
     }
     
+    let idjogo = input.jogo.id.clone();
+
     let mut jogos = carrega_jogos(&state).await;
     let jogo = jogos.iter_mut().find(|jogo| jogo.id == input.jogo.id).unwrap();
     
@@ -52,7 +54,31 @@ pub async fn usa_carta(Extension(state): Extension<Arc<AppState>>, input: Json<C
         Carta::Esquiva(_) => {
             nome_carta = "Esquiva";
             println!("Esquiva");
+        },
+        Carta::Carruagem(_) => {
+            nome_carta = "Carruagem";
+            println!("Carruagem");
+        },
+        Carta::Transporte(_) => {
+            nome_carta = "Transporte";
+            println!("Transporte");
         }
+    }
+
+    if nome_carta == "Carruagem"{
+        compra_cartas_especial(Extension(state.clone()), Json(JogadorJogoLimite{
+            jogador: jogador.clone(),
+            idjogo,
+            limite: 2
+        })).await.unwrap().1.0;
+    }
+
+    if nome_carta == "Transporte"{
+        compra_cartas_especial(Extension(state.clone()), Json(JogadorJogoLimite{
+            jogador: jogador.clone(),
+            idjogo,
+            limite: 3
+        })).await.unwrap().1.0;
     }
 
     jogo.logs.push(LogCarta{
