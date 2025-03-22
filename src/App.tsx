@@ -1076,7 +1076,7 @@ function App() {
                         )}
                         
                         
-                      {(turno === player.nome && turno === player.nome && player.personagem.atributos.vida_atual > 0) && (
+                      {(turno === player.nome && turno === player.nome) && (
                         <Button
                           onClick={async () => {
                             if (players[indexPlayer + 1]) {
