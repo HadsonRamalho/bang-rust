@@ -22,6 +22,7 @@ pub enum Carta{
     Saloon(InfoCarta),
     Carruagem(InfoCarta),
     Transporte(InfoCarta),
+    Panico(InfoCarta)
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -111,6 +112,10 @@ pub async fn lista_cartas()
             nome: "Transporte".to_string(),
             descricao: "Ao ser usada, compra mais 3 cartas da Pilha de Compras.".to_string()
         }),    
+        Carta::Panico(InfoCarta{
+            nome: "Pânico".to_string(),
+            descricao: "Ao ser usada, pode roubar 1 carta da mão de um jogador a 1 de distância.".to_string()
+        })
     ];
 
     Json(cartas)
@@ -200,7 +205,8 @@ pub async fn descartar_carta(Extension(state): Extension<Arc<AppState>>,  input:
         Carta::Cerveja(_) => "Cerveja",
         Carta::Saloon(_) => "Saloon",
         Carta::Carruagem(_) => "Carruagem",
-        Carta::Transporte(_) => "Transporte"
+        Carta::Transporte(_) => "Transporte",
+        Carta::Panico(_) => "Pânico"
     };
 
     if let Some(jogador) = jogo.jogadores.iter_mut().find(|p| p.nome == input.jogador.nome) {
@@ -241,7 +247,8 @@ pub async fn curar_personagem(Extension(state): Extension<Arc<AppState>>, input:
         Carta::Cerveja(_) => "Cerveja",
         Carta::Saloon(_) => "Saloon",
         Carta::Carruagem(_) => "Carruagem",
-        Carta::Transporte(_) => "Transporte"
+        Carta::Transporte(_) => "Transporte",
+        Carta::Panico(_) => "Pânico"
     };
 
     jogo.logs.push(LogCarta{

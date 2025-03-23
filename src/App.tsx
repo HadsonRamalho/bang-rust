@@ -129,7 +129,7 @@ function App() {
     setidjogo(res.id);
     setAtualizaEstadoId(res.id);
     setNome(res.jogadores[0].nome);
-    const ws = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/listar_handler');
+    const ws = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/listar_handler');
 
     ws.onopen = () => {
       console.log('Conectado ao WebSocket de Listagem do LoadGame');
@@ -361,7 +361,7 @@ function App() {
 
 
   const conectarJogo = () => {
-    const ws = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/ws');
+    const ws = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/ws');
 
     ws.onopen = () => {
       console.log('Conectado ao WebSocket');
@@ -411,7 +411,7 @@ function App() {
 
   useEffect(() => {
     const connect = () => {
-      myws.current = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/listar_handler');
+      myws.current = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/listar_handler');
 
       myws.current.onopen = () => {
         console.log('Conectado ao WebSocket de Listagem');
@@ -523,7 +523,7 @@ function App() {
 
     useEffect(() => {
       const connect = () => {
-        bangws.current = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/bang_ws');
+        bangws.current = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/bang_ws');
     
         bangws.current.onopen = () => {
           console.log('Conectado ao WebSocket de Bangs');
@@ -590,7 +590,7 @@ function App() {
 
     useEffect(() => {
       const connect = () => {
-        cartaws.current = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/uso_carta_handler');
+        cartaws.current = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/uso_carta_handler');
     
         cartaws.current.onopen = () => {
           console.log('Conectado ao WebSocket de Uso de Carta');
@@ -649,7 +649,7 @@ function App() {
 
     useEffect(() => {
       const connect = () => {
-        toast_ws.current = new WebSocket('wss://g6v9psc0-3069.brs.devtunnels.ms/toast_ws');
+        toast_ws.current = new WebSocket('wss://j1p43lfm-3069.brs.devtunnels.ms/toast_ws');
     
         toast_ws.current.onopen = () => {
           console.log('Conectado ao WebSocket de Toast');

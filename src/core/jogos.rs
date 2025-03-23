@@ -62,6 +62,10 @@ pub async fn usa_carta(Extension(state): Extension<Arc<AppState>>, input: Json<C
         Carta::Transporte(_) => {
             nome_carta = "Transporte";
             println!("Transporte");
+        },
+        Carta::Panico(_) => {
+            nome_carta = "Pânico";
+            println!("Pânico");
         }
     }
 
