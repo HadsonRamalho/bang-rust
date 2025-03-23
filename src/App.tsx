@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { carregaJogo, compraCartas, compraCartasEspecial, curaPersonagem, danoBang, descartaCarta, entraJogo, iniciaJogo, listaPersonagens, passaTurno, usaCarta } from "./services/game/game";
+import { carregaJogo, compraCartas, compraCartasEspecial, curaPersonagem, danoBang, descartaCarta, entraJogo, iniciaJogo, listaPersonagens, passaTurno, usaCarta, usarPanico } from "./services/game/game";
 import type { Personagem } from "./interfaces/character/character";
 import { Avatar } from "./components/ui/avatar";
 import { CardSvgIcon } from "./components/card-svg-icon";
@@ -74,6 +74,12 @@ function App() {
   const [alvosBang, setAlvosBang] = useState<Jogador[]>();
   const [bangGlobal, setBangGlobal] = useState<Carta>();
 
+  
+  const [isPanico, setIsPanico] = useState(false);
+  const [alvosPanico, setAlvosPanico] = useState<Jogador[]>();
+  const [panicoGlobal, setPanicoGlobal] = useState<Carta>();
+
+
   const [playerNames, setPlayerNames] = useState<string[]>(
     Array(qtdPlayers).fill(""),
   );
@@ -92,6 +98,27 @@ function App() {
       } else {
       console.error("BANG WS NÃO DETECTADO");
       }
+  }
+
+  const confirmaPanico = async (alvo: Jogador) => {
+    const myobj = {
+      jogador: players.find((player) => player.nome === nome),
+      alvo: alvo,
+      idjogo: jogo?.id,
+      carta: panicoGlobal,
+    };
+    if (panicoGlobal && myobj.jogador && myobj.idjogo){
+      try {
+        await usarPanico(panicoGlobal, myobj.jogador, myobj.idjogo, myobj.alvo);
+        if (toast_ws.current?.readyState === WebSocket.OPEN) {
+          toast_ws.current?.send(`${nome} usou Pânico em ${alvo.nome}.`);
+          console.warn("Enviou para o toast");
+        }
+      } catch (error) {
+        console.error(error);
+        toast("Erro ao usar Pânico nesse jogador.");
+      }      
+    }
   }
 
   const loadGame = async () => {
@@ -241,6 +268,36 @@ function App() {
       console.log('Jogadores no alcance da visão: ', jogadores);
       setAlvosBang(jogadores);
       setBangGlobal(carta);
+      let indexAnterior = players.findIndex((player) => player.nome === jogador.nome) - jogador.personagem.atributos.visao;
+      if(indexAnterior < 0){
+        indexAnterior = players.length - 1;
+      }
+      let indexPosterior = players.findIndex((player) => player.nome === jogador.nome) + jogador.personagem.atributos.visao;
+      if(indexPosterior >= players.length){
+        indexPosterior = 0;
+      }
+    }
+    if(tipo === "Panico"){
+      setIsPanico(true);
+      const jogadores = [];
+      for (let i = 1; i <= jogador.personagem.atributos.visao; i++) {
+        let indexAnterior = players.findIndex((player) => player.nome === jogador.nome) - i;
+        let indexPosterior = players.findIndex((player) => player.nome === jogador.nome) + i;
+
+        if (indexAnterior < 0) {
+          indexAnterior = players.length + indexAnterior;
+        }
+        if (indexPosterior >= players.length) {
+          indexPosterior = indexPosterior - players.length;
+        }
+
+        jogadores.push(players[indexAnterior]);
+        jogadores.push(players[indexPosterior]);
+      }
+
+      console.log('Jogadores no alcance do pânico: ', jogadores);
+      setAlvosPanico(jogadores);
+      setPanicoGlobal(carta);
       let indexAnterior = players.findIndex((player) => player.nome === jogador.nome) - jogador.personagem.atributos.visao;
       if(indexAnterior < 0){
         indexAnterior = players.length - 1;
@@ -753,32 +810,63 @@ function App() {
           </AlertDialogContent>
         </AlertDialog>
         <AlertDialog open={bangTarget === nome}>
-  <AlertDialogContent className="bg-white">
-    <AlertDialogHeader>
-      <AlertDialogTitle>Você foi alvo de um Bang!</AlertDialogTitle>
-      <AlertDialogDescription>
-        Alguém usou uma carta Bang em você. Você pode se esquivar ou optar por receber o dano.
-      </AlertDialogDescription>
-    </AlertDialogHeader>
-    <AlertDialogFooter>
-      <Button className="hover:cursor-pointer hover:bg-[hsl(var(--primary))]" onClick={async () => {
-        setBangTarget("")
-        const playerIndex = players.findIndex((player) => player.nome === nome);
-        const playerAlvo = players[playerIndex];
-        await causarDanoBang(playerAlvo);
-      }}>Receber dano</Button>
-      <AlertDialogAction className="hover:cursor-pointer hover:bg-[hsl(var(--primary))]" onClick={async () => {
-        setBangTarget("");
-        if (toast_ws.current?.readyState === WebSocket.OPEN) {
-          toast_ws.current?.send(`${nome} se esquivou de um Bang!`);
-          toast("Você se esquivou!");
-          console.warn("Enviou para o toast");
-        }
-      }}>Esquivar</AlertDialogAction>
-    </AlertDialogFooter>
-  </AlertDialogContent>
-</AlertDialog>
-
+          <AlertDialogContent className="bg-white">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Você foi alvo de um Bang!</AlertDialogTitle>
+              <AlertDialogDescription>
+                Alguém usou uma carta Bang em você. Você pode se esquivar ou optar por receber o dano.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <Button className="hover:cursor-pointer hover:bg-[hsl(var(--primary))]" onClick={async () => {
+                setBangTarget("")
+                const playerIndex = players.findIndex((player) => player.nome === nome);
+                const playerAlvo = players[playerIndex];
+                await causarDanoBang(playerAlvo);
+              }}>Receber dano</Button>
+              <AlertDialogAction className="hover:cursor-pointer hover:bg-[hsl(var(--primary))]" onClick={async () => {
+                setBangTarget("");
+                if (toast_ws.current?.readyState === WebSocket.OPEN) {
+                  toast_ws.current?.send(`${nome} se esquivou de um Bang!`);
+                  toast("Você se esquivou!");
+                  console.warn("Enviou para o toast");
+                }
+              }}>Esquivar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <AlertDialog open={isPanico}>
+          <AlertDialogContent className="bg-[hsl(var(--background))]">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Pânico!</AlertDialogTitle>
+              <AlertDialogDescription>
+                Escolha um alvo para o Pânico.
+                {
+                  alvosPanico?.map((alvo) => (
+                    <Card className="border-[hsl(var(--primary))] m-2 flex items-center" key={alvo.nome}>
+                      <CardContent className="flex items-center">
+                        <Avatar>
+                          <img src={`${alvo.personagem.nome}.png`} alt={`imagem de ${alvo.personagem.nome}`}/>
+                        </Avatar>
+                        <p>Jogador: {alvo.nome}</p>
+                        <p>Personagem: {alvo.personagem.nome}</p>
+                        <p>Vida Atual: {alvo.personagem.atributos.vida_atual}</p>
+                        <p>Quantidade de cartas: {alvo.cartas.length}</p>
+                        <Button className="bg-[hsl(var(--primary))] hover:cursor-pointer"
+                        onClick={() => {
+                          confirmaPanico(alvo)
+                        }}>Pânico!</Button>
+                      </CardContent>
+                    </Card>
+                  ))
+                }
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="hover:cursor-pointer border-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]" onClick={() => {setIsPanico(false)}}>Cancelar</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
             <CardHeader>
               Salas disponíveis
             </CardHeader>

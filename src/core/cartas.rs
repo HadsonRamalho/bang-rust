@@ -354,3 +354,43 @@ pub async fn compra_cartas_especial(Extension(state): Extension<Arc<AppState>>, 
 
     return Ok((StatusCode::OK, Json(cartas)))
 }
+
+pub async fn usar_panico_alvo(Extension(state): Extension<Arc<AppState>>, input: Json<JogadorCartaAlvo>)
+    -> Result<(StatusCode, Json<Jogo>), StatusCode>{
+    if !verifica_jogo_existe(&state, input.idjogo).await{
+        return Err(StatusCode::INTERNAL_SERVER_ERROR)
+    }
+
+    let mut jogos = carrega_jogos(&state).await;
+    let jogo = jogos.iter_mut().find(|jogo| jogo.id == input.idjogo).unwrap();
+
+    let mut nome_origem = input.jogador.nome.to_string();
+    nome_origem.push_str(" -> ");
+    nome_origem.push_str(&input.alvo.nome);
+
+    let mut carta_roubada: Carta = Carta::Esquiva(InfoCarta { nome: "Inválido".to_string(), descricao: "Carta inválida".to_string() });
+   
+    let qtd = jogo.jogadores.iter().find(|j| j.nome == input.jogador.nome).unwrap().cartas.len();
+    let random = rand::random_range(0..qtd - 1);
+
+    if let Some(jogador) = jogo.jogadores.iter_mut().find(|p| p.nome == input.alvo.nome) {
+        carta_roubada = jogador.cartas[random].clone(); 
+        println!("Carta roubada: {:?}", carta_roubada);
+        jogador.cartas.remove(random);     
+    }
+
+    jogo.jogadores.iter_mut().filter(|p| p.nome == input.jogador.nome).for_each(|p| p.cartas.extend(vec![carta_roubada.clone()]));
+
+    let log = LogCarta{
+        nome_carta: "Pânico".to_string(),
+        nome_jogador: nome_origem,
+        descricao: format!("{} usou Pânico em {}", input.jogador.nome, input.alvo.nome),
+    };
+
+    jogo.logs.push(log);
+
+    atualiza_jogo(&state, jogo.to_owned()).await;
+
+    return Ok((StatusCode::OK, Json(jogo.to_owned())))
+    
+}

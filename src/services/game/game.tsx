@@ -188,3 +188,19 @@ export async function danoBang(jogador: Jogador, idjogo: number): Promise<Jogo> 
     );
   }
 }
+
+export async function usarPanico(carta: Carta, jogador: Jogador, idjogo: number, alvo: Jogador): Promise<ResUsoCarta> {
+  try {
+    const res = await client.post<ResUsoCarta>("/usar_panico_alvo", {
+      carta: carta, idjogo, jogador, alvo
+    });
+    const data: ResUsoCarta = res.data;
+    return data;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    console.error(error.response?.status, error.message);
+    throw new Error(
+      `Falha ao usar o pânico: Código [${error.response?.status}]`
+    );
+  }
+}
